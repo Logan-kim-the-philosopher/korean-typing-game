@@ -1,0 +1,968 @@
+import { useState, useEffect, useCallback } from 'react';
+
+// Airtable 설정 (환경 변수 사용)
+const USE_MOCK_DATA = !import.meta.env.VITE_AIRTABLE_TOKEN; // 토큰이 없으면 Mock 데이터 사용
+const AIRTABLE_BASE_ID = import.meta.env.VITE_AIRTABLE_BASE_ID || '';
+const AIRTABLE_TABLE_NAME = import.meta.env.VITE_AIRTABLE_TABLE_NAME || '';
+const AIRTABLE_TOKEN = import.meta.env.VITE_AIRTABLE_TOKEN || '';
+
+// 목업 커리큘럼 (Airtable 연결 실패 시 사용)
+const MOCK_CURRICULUMS = [
+  { id: 'travel', name: 'Travel', icon: '✈️', description: 'Essential Korean for travel' },
+  { id: 'study', name: 'Study Abroad', icon: '📚', description: 'Academic and campus life expressions' },
+  { id: 'work', name: 'Employment', icon: '💼', description: 'Workplace and job-related vocabulary' },
+];
+
+// 목업 데이터 (커리큘럼별)
+const MOCK_WORDS = [
+  // 여행 커리큘럼
+  { korean: '공항', english: 'airport', level: 'beginner1', category: 'noun', curriculum: 'travel' },
+  { korean: '호텔', english: 'hotel', level: 'beginner1', category: 'noun', curriculum: 'travel' },
+  { korean: '지하철', english: 'subway', level: 'beginner1', category: 'noun', curriculum: 'travel' },
+  { korean: '택시', english: 'taxi', level: 'beginner1', category: 'noun', curriculum: 'travel' },
+  { korean: '식당', english: 'restaurant', level: 'beginner1', category: 'noun', curriculum: 'travel' },
+  { korean: '관광', english: 'tourism', level: 'beginner1', category: 'noun', curriculum: 'travel' },
+  { korean: '예약', english: 'reservation', level: 'beginner1', category: 'noun', curriculum: 'travel' },
+  { korean: '여권', english: 'passport', level: 'beginner1', category: 'noun', curriculum: 'travel' },
+  { korean: '짐', english: 'luggage', level: 'beginner1', category: 'noun', curriculum: 'travel' },
+  { korean: '길', english: 'road', level: 'beginner1', category: 'noun', curriculum: 'travel' },
+
+  // 유학 커리큘럼
+  { korean: '학교', english: 'school', level: 'beginner1', category: 'noun', curriculum: 'study' },
+  { korean: '도서관', english: 'library', level: 'beginner1', category: 'noun', curriculum: 'study' },
+  { korean: '수업', english: 'class', level: 'beginner1', category: 'noun', curriculum: 'study' },
+  { korean: '교수', english: 'professor', level: 'beginner1', category: 'noun', curriculum: 'study' },
+  { korean: '숙제', english: 'homework', level: 'beginner1', category: 'noun', curriculum: 'study' },
+  { korean: '시험', english: 'exam', level: 'beginner1', category: 'noun', curriculum: 'study' },
+  { korean: '학생', english: 'student', level: 'beginner1', category: 'noun', curriculum: 'study' },
+  { korean: '기숙사', english: 'dormitory', level: 'beginner1', category: 'noun', curriculum: 'study' },
+  { korean: '공부', english: 'study', level: 'beginner1', category: 'noun', curriculum: 'study' },
+  { korean: '졸업', english: 'graduation', level: 'beginner1', category: 'noun', curriculum: 'study' },
+
+  // 취업 커리큘럼
+  { korean: '회사', english: 'company', level: 'beginner1', category: 'noun', curriculum: 'work' },
+  { korean: '면접', english: 'interview', level: 'beginner1', category: 'noun', curriculum: 'work' },
+  { korean: '이력서', english: 'resume', level: 'beginner1', category: 'noun', curriculum: 'work' },
+  { korean: '직원', english: 'employee', level: 'beginner1', category: 'noun', curriculum: 'work' },
+  { korean: '회의', english: 'meeting', level: 'beginner1', category: 'noun', curriculum: 'work' },
+  { korean: '사무실', english: 'office', level: 'beginner1', category: 'noun', curriculum: 'work' },
+  { korean: '급여', english: 'salary', level: 'beginner1', category: 'noun', curriculum: 'work' },
+  { korean: '계약', english: 'contract', level: 'beginner1', category: 'noun', curriculum: 'work' },
+  { korean: '동료', english: 'colleague', level: 'beginner1', category: 'noun', curriculum: 'work' },
+  { korean: '업무', english: 'work/task', level: 'beginner1', category: 'noun', curriculum: 'work' },
+];
+
+// 한글 자모 분해 함수 (es-hangul 대체)
+const disassembleHangul = (word) => {
+  const HANGUL_START = 0xAC00;
+  const CHO = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'];
+  const JUNG = ['ㅏ', 'ㅐ', 'ㅑ', 'ㅒ', 'ㅓ', 'ㅔ', 'ㅕ', 'ㅖ', 'ㅗ', 'ㅘ', 'ㅙ', 'ㅚ', 'ㅛ', 'ㅜ', 'ㅝ', 'ㅞ', 'ㅟ', 'ㅠ', 'ㅡ', 'ㅢ', 'ㅣ'];
+  const JONG = ['', 'ㄱ', 'ㄲ', 'ㄳ', 'ㄴ', 'ㄵ', 'ㄶ', 'ㄷ', 'ㄹ', 'ㄺ', 'ㄻ', 'ㄼ', 'ㄽ', 'ㄾ', 'ㄿ', 'ㅀ', 'ㅁ', 'ㅂ', 'ㅄ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'];
+
+  // 복합 모음 분해 매핑 (실제 키보드에서 여러 키를 눌러야 하는 것만)
+  // ㅐ, ㅔ, ㅒ, ㅖ는 단일 키이므로 분리하지 않음
+  const complexJungDecompose = {
+    'ㅘ': ['ㅗ', 'ㅏ'],
+    'ㅙ': ['ㅗ', 'ㅏ', 'ㅣ'],
+    'ㅚ': ['ㅗ', 'ㅣ'],
+    'ㅝ': ['ㅜ', 'ㅓ'],
+    'ㅞ': ['ㅜ', 'ㅓ', 'ㅣ'],
+    'ㅟ': ['ㅜ', 'ㅣ'],
+    'ㅢ': ['ㅡ', 'ㅣ']
+  };
+
+  // 복합 자음 분해 매핑
+  const complexJongDecompose = {
+    'ㄳ': ['ㄱ', 'ㅅ'],
+    'ㄵ': ['ㄴ', 'ㅈ'],
+    'ㄶ': ['ㄴ', 'ㅎ'],
+    'ㄺ': ['ㄹ', 'ㄱ'],
+    'ㄻ': ['ㄹ', 'ㅁ'],
+    'ㄼ': ['ㄹ', 'ㅂ'],
+    'ㄽ': ['ㄹ', 'ㅅ'],
+    'ㄾ': ['ㄹ', 'ㅌ'],
+    'ㄿ': ['ㄹ', 'ㅍ'],
+    'ㅀ': ['ㄹ', 'ㅎ'],
+    'ㅄ': ['ㅂ', 'ㅅ']
+  };
+
+  const result = [];
+
+  for (let char of word) {
+    const code = char.charCodeAt(0);
+
+    if (code >= HANGUL_START && code <= 0xD7A3) {
+      const hangulCode = code - HANGUL_START;
+      const choIndex = Math.floor(hangulCode / 588);
+      const jungIndex = Math.floor((hangulCode % 588) / 28);
+      const jongIndex = hangulCode % 28;
+
+      // 초성 추가
+      result.push(CHO[choIndex]);
+
+      // 중성 추가 (복합 모음인 경우 분해)
+      const jung = JUNG[jungIndex];
+      if (complexJungDecompose[jung]) {
+        result.push(...complexJungDecompose[jung]);
+      } else {
+        result.push(jung);
+      }
+
+      // 종성 추가 (복합 자음인 경우 분해)
+      if (jongIndex !== 0) {
+        const jong = JONG[jongIndex];
+        if (complexJongDecompose[jong]) {
+          result.push(...complexJongDecompose[jong]);
+        } else {
+          result.push(jong);
+        }
+      }
+    } else {
+      result.push(char);
+    }
+  }
+
+  return result;
+};
+
+// 자모 -> 키보드 매핑 (두벌식)
+const jamoToKey = {
+  'ㄱ': 'r', 'ㄲ': 'R', 'ㄴ': 's', 'ㄷ': 'e', 'ㄸ': 'E', 'ㄹ': 'f',
+  'ㅁ': 'a', 'ㅂ': 'q', 'ㅃ': 'Q', 'ㅅ': 't', 'ㅆ': 'T', 'ㅇ': 'd',
+  'ㅈ': 'w', 'ㅉ': 'W', 'ㅊ': 'c', 'ㅋ': 'z', 'ㅌ': 'x', 'ㅍ': 'v', 'ㅎ': 'g',
+  'ㅏ': 'k', 'ㅐ': 'o', 'ㅑ': 'i', 'ㅒ': 'O', 'ㅓ': 'j', 'ㅔ': 'p',
+  'ㅕ': 'u', 'ㅖ': 'P', 'ㅗ': 'h', 'ㅛ': 'y', 'ㅜ': 'n', 'ㅠ': 'b',
+  'ㅡ': 'm', 'ㅣ': 'l', 'ㅘ': 'hk', 'ㅙ': 'ho', 'ㅚ': 'hl', 'ㅝ': 'nj',
+  'ㅞ': 'np', 'ㅟ': 'nl', 'ㅢ': 'ml',
+  ' ': ' '  // 스페이스바
+};
+
+// 키 위치 매핑
+const keyPositions = {
+  // 왼손
+  'r': { row: 1, col: 3, hand: 'left' }, 't': { row: 1, col: 4, hand: 'left' },
+  'e': { row: 2, col: 2, hand: 'left' }, 'w': { row: 2, col: 1, hand: 'left' },
+  's': { row: 3, col: 1, hand: 'left' }, 'f': { row: 3, col: 3, hand: 'left' },
+  'a': { row: 4, col: 0, hand: 'left' }, 'q': { row: 4, col: 0, hand: 'left' },
+  'x': { row: 5, col: 1, hand: 'left' }, 'z': { row: 5, col: 0, hand: 'left' },
+  'c': { row: 5, col: 2, hand: 'left' }, 'v': { row: 5, col: 3, hand: 'left' },
+  'd': { row: 3, col: 2, hand: 'left' }, 'g': { row: 3, col: 4, hand: 'left' },
+  // 오른손
+  'y': { row: 1, col: 5, hand: 'right' }, 'u': { row: 1, col: 6, hand: 'right' },
+  'i': { row: 1, col: 7, hand: 'right' }, 'o': { row: 1, col: 8, hand: 'right' },
+  'p': { row: 1, col: 9, hand: 'right' }, 'h': { row: 2, col: 5, hand: 'right' },
+  'j': { row: 2, col: 6, hand: 'right' }, 'k': { row: 2, col: 7, hand: 'right' },
+  'l': { row: 2, col: 8, hand: 'right' }, 'n': { row: 3, col: 5, hand: 'right' },
+  'b': { row: 3, col: 4, hand: 'right' }, 'm': { row: 3, col: 6, hand: 'right' },
+};
+
+// Airtable에서 모든 데이터 가져오기 (커리큘럼 추출용)
+async function fetchAllWords() {
+  console.log('fetchAllWords() called, USE_MOCK_DATA:', USE_MOCK_DATA);
+
+  if (USE_MOCK_DATA) {
+    console.log('Using MOCK_WORDS');
+    return MOCK_WORDS;
+  }
+
+  try {
+    console.log('Fetching from Airtable...');
+    const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE_NAME}`;
+    console.log('URL:', url);
+
+    const response = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` }
+    });
+
+    console.log('Response status:', response.status);
+
+    if (!response.ok) {
+      throw new Error(`Airtable API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('Airtable data:', data);
+
+    const words = data.records.map(r => ({
+      korean: r.fields['한국어'],
+      english: r.fields['영어 뜻'],
+      level: r.fields['레벨'],
+      category: r.fields['품사'],
+      curriculum: r.fields['커리큘럼ID'],
+      curriculumName: r.fields['커리큘럼이름'],
+      curriculumIcon: r.fields['커리큘럼아이콘'],
+      curriculumDescription: r.fields['커리큘럼설명']
+    }));
+
+    console.log('Mapped words:', words);
+    return words;
+  } catch (error) {
+    console.error('Airtable fetch error:', error);
+    return MOCK_WORDS;
+  }
+}
+
+// Airtable에서 커리큘럼 목록 추출
+async function fetchCurriculums() {
+  const allWords = await fetchAllWords();
+
+  // 커리큘럼ID별로 그룹화
+  const curriculumMap = new Map();
+
+  allWords.forEach(word => {
+    if (word.curriculum && !curriculumMap.has(word.curriculum)) {
+      curriculumMap.set(word.curriculum, {
+        id: word.curriculum,
+        name: word.curriculumName || word.curriculum,
+        icon: word.curriculumIcon || '📚',
+        description: word.curriculumDescription || ''
+      });
+    }
+  });
+
+  // 커리큘럼 ID 순서로 정렬 (W1-1, W1-2, W1-3, W2-1, W2-2, W2-3...)
+  const curriculums = Array.from(curriculumMap.values());
+  curriculums.sort((a, b) => {
+    return a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' });
+  });
+
+  return curriculums;
+}
+
+// Airtable에서 데이터 가져오기 (커리큘럼별)
+async function fetchWords(curriculum) {
+  console.log('fetchWords() called with curriculum:', curriculum);
+
+  if (USE_MOCK_DATA) {
+    console.log('Using MOCK_WORDS for fetchWords');
+    return MOCK_WORDS.filter(w => w.curriculum === curriculum);
+  }
+
+  try {
+    const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE_NAME}?filterByFormula={커리큘럼ID}='${curriculum}'`;
+    console.log('fetchWords URL:', url);
+
+    const response = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` }
+    });
+
+    console.log('fetchWords response status:', response.status);
+
+    if (!response.ok) {
+      throw new Error(`Airtable API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('fetchWords data:', data);
+
+    const words = data.records.map(r => ({
+      korean: r.fields['한국어'],
+      english: r.fields['영어 뜻'],
+      level: r.fields['레벨'],
+      category: r.fields['품사'],
+      curriculum: r.fields['커리큘럼ID']
+    }));
+
+    console.log('fetchWords mapped words:', words);
+    return words;
+  } catch (error) {
+    console.error('Airtable fetchWords error:', error);
+    return MOCK_WORDS.filter(w => w.curriculum === curriculum);
+  }
+}
+
+// 키보드 컴포넌트
+function Keyboard({ currentKey }) {
+  const keyLayout = [
+    [
+      { kor: 'ㅂ', eng: 'q' }, { kor: 'ㅈ', eng: 'w' }, { kor: 'ㄷ', eng: 'e' }, { kor: 'ㄱ', eng: 'r' },
+      { kor: 'ㅅ', eng: 't' }, { kor: 'ㅛ', eng: 'y' }, { kor: 'ㅕ', eng: 'u' }, { kor: 'ㅑ', eng: 'i' },
+      { kor: 'ㅐ', eng: 'o' }, { kor: 'ㅔ', eng: 'p' }
+    ],
+    [
+      { kor: 'ㅁ', eng: 'a' }, { kor: 'ㄴ', eng: 's' }, { kor: 'ㅇ', eng: 'd' }, { kor: 'ㄹ', eng: 'f' },
+      { kor: 'ㅎ', eng: 'g' }, { kor: 'ㅗ', eng: 'h' }, { kor: 'ㅓ', eng: 'j' }, { kor: 'ㅏ', eng: 'k' },
+      { kor: 'ㅣ', eng: 'l' }
+    ],
+    [
+      { kor: 'ㅋ', eng: 'z' }, { kor: 'ㅌ', eng: 'x' }, { kor: 'ㅊ', eng: 'c' }, { kor: 'ㅍ', eng: 'v' },
+      { kor: 'ㅠ', eng: 'b' }, { kor: 'ㅜ', eng: 'n' }, { kor: 'ㅡ', eng: 'm' }
+    ]
+  ];
+
+  // Shift 키가 필요한지 확인 (대문자인 경우)
+  const needsShift = currentKey && currentKey === currentKey.toUpperCase() && currentKey !== currentKey.toLowerCase();
+
+  const getKeyClass = (key) => {
+    if (!key || !currentKey || typeof currentKey !== 'string') {
+      return `px-6 py-4 rounded-lg border-2 font-mono transition-all flex flex-col items-center justify-center min-w-[60px] bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700`;
+    }
+
+    const isActive = (
+      currentKey === key.eng ||
+      currentKey.toLowerCase() === key.eng.toLowerCase()
+    );
+
+    return `px-6 py-4 rounded-lg border-2 font-mono transition-all flex flex-col items-center justify-center min-w-[60px] ${
+      isActive
+        ? 'bg-blue-600 border-blue-400 text-white scale-110 shadow-lg'
+        : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
+    }`;
+  };
+
+  const getShiftKeyClass = () => {
+    return `px-6 py-4 rounded-lg border-2 font-mono transition-all min-w-[80px] flex items-center justify-center ${
+      needsShift
+        ? 'bg-blue-600 border-blue-400 text-white scale-110 shadow-lg'
+        : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
+    }`;
+  };
+
+  const getSpacebarClass = () => {
+    const isActive = currentKey === ' ';
+    return `px-6 py-4 rounded-lg border-2 font-mono transition-all flex items-center justify-center ${
+      isActive
+        ? 'bg-blue-600 border-blue-400 text-white scale-110 shadow-lg'
+        : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
+    }`;
+  };
+
+  return (
+    <div className="flex flex-col gap-3 items-center">
+      {keyLayout.slice(0, 2).map((row, i) => (
+        <div key={i} className="flex gap-3">
+          {row.map((key) => (
+            <div key={key.eng} className={getKeyClass(key)}>
+              <div className="text-lg font-bold">{key.kor}</div>
+              <div className="text-xs text-gray-400">{key.eng.toUpperCase()}</div>
+            </div>
+          ))}
+        </div>
+      ))}
+      {/* 세 번째 줄: Shift 키와 함께 */}
+      <div className="flex gap-3">
+        <div className={getShiftKeyClass()}>
+          <span className="text-sm">Shift</span>
+        </div>
+        {keyLayout[2].map((key) => (
+          <div key={key.eng} className={getKeyClass(key)}>
+            <div className="text-lg font-bold">{key.kor}</div>
+            <div className="text-xs text-gray-400">{key.eng.toUpperCase()}</div>
+          </div>
+        ))}
+      </div>
+      {/* 네 번째 줄: 스페이스바 */}
+      <div className="flex gap-3 w-full justify-center">
+        <div className={getSpacebarClass()} style={{ minWidth: '400px' }}>
+          <span className="text-sm">Spacebar</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 커리큘럼 선택 화면 컴포넌트
+function CurriculumSelection({ onSelect, student, curriculums, loading }) {
+  // localStorage에서 각 커리큘럼별 완료 상태 가져오기
+  const isCompleted = (curriculumId) => {
+    const saved = localStorage.getItem(`korean-typing-progress-${curriculumId}`);
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        return data.completed === true;
+      } catch (e) {
+        return false;
+      }
+    }
+    return false;
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center">
+        <div className="text-white text-2xl">Loading curriculums...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center p-8">
+      <div className="w-full max-w-6xl">
+        <div className="text-center mb-16">
+          <h1 className="text-7xl font-extrabold text-white mb-3 tracking-tight">
+            Korean Typing Practice
+          </h1>
+          {student && (
+            <p className="text-gray-400 text-2xl font-light">{student}, welcome!</p>
+          )}
+        </div>
+
+        <h2 className="text-3xl font-semibold text-white text-center mb-12 tracking-wide">
+          Select a Curriculum
+        </h2>
+
+        <div className={`grid gap-8 ${
+          curriculums.length === 1 ? 'grid-cols-1 max-w-md mx-auto' :
+          curriculums.length === 2 ? 'grid-cols-1 md:grid-cols-2 max-w-4xl mx-auto' :
+          'grid-cols-1 md:grid-cols-3'
+        }`}>
+          {curriculums.map((curriculum) => {
+            const completed = isCompleted(curriculum.id);
+            return (
+              <button
+                key={curriculum.id}
+                onClick={() => onSelect(curriculum.id)}
+                className={`group bg-gradient-to-br from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 border rounded-2xl p-10 transition-all duration-300 transform hover:scale-105 relative overflow-hidden ${
+                  completed
+                    ? 'border-yellow-500 shadow-2xl shadow-yellow-500/40 hover:shadow-yellow-500/60 animate-pulse-slow'
+                    : 'border-gray-700 hover:border-blue-500 hover:shadow-2xl hover:shadow-blue-500/20'
+                }`}
+              >
+                <div className={`absolute inset-0 bg-gradient-to-br transition-all duration-300 ${
+                  completed
+                    ? 'from-yellow-500/10 to-yellow-500/0'
+                    : 'from-blue-500/0 to-blue-500/0 group-hover:from-blue-500/5 group-hover:to-transparent'
+                }`}></div>
+
+                {/* 완료 표시 */}
+                {completed && (
+                  <div className="absolute top-4 right-4 bg-yellow-500 text-black px-4 py-2 rounded-full font-bold text-sm flex items-center gap-2 shadow-lg">
+                    <span>✓</span>
+                    <span>Complete</span>
+                  </div>
+                )}
+
+                <div className="relative">
+                  <div className={`text-7xl mb-6 text-center transform group-hover:scale-110 transition-transform duration-300 ${
+                    completed ? 'drop-shadow-[0_0_15px_rgba(234,179,8,0.5)]' : ''
+                  }`}>{curriculum.icon}</div>
+                  <h3 className={`text-3xl font-bold text-center mb-3 tracking-tight ${
+                    completed ? 'text-yellow-400' : 'text-white'
+                  }`}>
+                    {curriculum.name}
+                  </h3>
+                  <p className="text-gray-400 text-center text-base leading-relaxed">
+                    {curriculum.description}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 메인 앱 컴포넌트
+function App() {
+  const [words, setWords] = useState([]);
+  const [currentWordIndex, setCurrentWordIndex] = useState(0);
+  const [currentJamoIndex, setCurrentJamoIndex] = useState(0);
+  const [currentJamos, setCurrentJamos] = useState([]);
+  const [completedWords, setCompletedWords] = useState([]);
+  const [mistakeWords, setMistakeWords] = useState([]);
+  const [stats, setStats] = useState({ totalAttempts: 0, correctAttempts: 0 });
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [level, setLevel] = useState('beginner1');
+  const [curriculum, setCurriculum] = useState('');
+  const [student, setStudent] = useState('');
+  const [wrongKeyAttempts, setWrongKeyAttempts] = useState(0);
+  const [showError, setShowError] = useState(false);
+  const [curriculums, setCurriculums] = useState([]);
+  const [curriculumsLoading, setCurriculumsLoading] = useState(true);
+
+  // URL 파라미터에서 커리큘럼, 레벨, 학생 이름 가져오기
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlCurriculum = params.get('curriculum');
+    const urlLevel = params.get('level');
+    const urlStudent = params.get('student');
+
+    if (urlCurriculum) setCurriculum(urlCurriculum);
+    if (urlLevel) setLevel(urlLevel);
+    if (urlStudent) setStudent(urlStudent);
+  }, []);
+
+  // 커리큘럼 목록 로드
+  useEffect(() => {
+    fetchCurriculums().then(data => {
+      setCurriculums(data);
+      setCurriculumsLoading(false);
+    }).catch(error => {
+      console.error('Failed to load curriculums:', error);
+      setCurriculums(MOCK_CURRICULUMS);
+      setCurriculumsLoading(false);
+    });
+  }, []);
+
+  // 커리큘럼이 변경되면 해당 커리큘럼의 데이터 로드
+  useEffect(() => {
+    if (curriculum) {
+      const saved = localStorage.getItem(`korean-typing-progress-${curriculum}`);
+      if (saved) {
+        try {
+          const data = JSON.parse(saved);
+          // completed가 true면 모든 단어를 다시 시작 (복습 모드)
+          if (data.completed) {
+            setCompletedWords([]);
+            setMistakeWords([]);
+            setStats({ totalAttempts: 0, correctAttempts: 0 });
+          } else {
+            setCompletedWords(data.completedWords || []);
+            setStats(data.stats || { totalAttempts: 0, correctAttempts: 0 });
+            setMistakeWords(data.mistakeWords || []);
+          }
+        } catch (e) {
+          console.error('localStorage parse error:', e);
+        }
+      } else {
+        // 새 커리큘럼이면 초기화
+        setCompletedWords([]);
+        setStats({ totalAttempts: 0, correctAttempts: 0 });
+        setMistakeWords([]);
+      }
+    }
+  }, [curriculum]);
+
+  // 단어 데이터 로드
+  useEffect(() => {
+    console.log('Words loading useEffect triggered, curriculum:', curriculum);
+    if (curriculum) {
+      console.log('Calling fetchWords with curriculum:', curriculum);
+      fetchWords(curriculum).then(words => {
+        console.log('fetchWords returned:', words);
+        setWords(words);
+      });
+    }
+  }, [curriculum]);
+
+  // 현재 단어의 자모 분해
+  useEffect(() => {
+    if (words.length > 0 && currentWordIndex < words.length) {
+      const word = words[currentWordIndex];
+      const jamos = disassembleHangul(word.korean);
+      setCurrentJamos(jamos);
+      setCurrentJamoIndex(0);
+      setWrongKeyAttempts(0);
+    }
+  }, [words, currentWordIndex]);
+
+  // localStorage에 저장 (커리큘럼별)
+  const saveToLocalStorage = useCallback((markAsCompleted = false) => {
+    if (!curriculum) return;
+
+    // 기존 데이터 가져오기
+    const saved = localStorage.getItem(`korean-typing-progress-${curriculum}`);
+    let existingData = {};
+
+    if (saved) {
+      try {
+        existingData = JSON.parse(saved);
+      } catch (e) {
+        console.error('localStorage parse error:', e);
+      }
+    }
+
+    const data = {
+      completedWords,
+      stats,
+      mistakeWords,
+      completed: markAsCompleted || existingData.completed || false
+    };
+    localStorage.setItem(`korean-typing-progress-${curriculum}`, JSON.stringify(data));
+  }, [curriculum, completedWords, stats, mistakeWords]);
+
+  // 키 입력 처리
+  const handleKeyPress = useCallback((event) => {
+    if (isCompleted || words.length === 0) return;
+
+    const currentJamo = currentJamos[currentJamoIndex];
+    const expectedKey = jamoToKey[currentJamo];
+    const pressedKey = event.key;
+
+    console.log('Key pressed:', {
+      jamo: currentJamo,
+      expectedKey: expectedKey,
+      pressedKey: pressedKey,
+      match: pressedKey === expectedKey
+    });
+
+    // 특수 키 무시
+    if (['Shift', 'Control', 'Alt', 'Meta', 'Tab', 'Escape'].includes(pressedKey)) {
+      return;
+    }
+
+    setStats(prev => ({
+      ...prev,
+      totalAttempts: prev.totalAttempts + 1
+    }));
+
+    // 정확한 키 매칭 (대소문자 엄격 구분)
+    // 복합 자모(ㅘ='hk', ㅝ='nj' 등)의 경우에만 부분 매칭 허용
+    let isMatch = false;
+
+    if (expectedKey && expectedKey.length > 1) {
+      // 복합 자모: 첫 번째 키만 확인 (예: 'hk'에서 'h' 입력)
+      isMatch = expectedKey.startsWith(pressedKey);
+    } else {
+      // 단일 키: 정확히 일치해야 함 (Shift 포함)
+      isMatch = pressedKey === expectedKey;
+    }
+
+    console.log('isMatch:', isMatch);
+
+    if (isMatch) {
+      // 정답
+      setStats(prev => ({
+        ...prev,
+        correctAttempts: prev.correctAttempts + 1
+      }));
+
+      if (currentJamoIndex + 1 >= currentJamos.length) {
+        // 단어 완성
+        const currentWord = words[currentWordIndex];
+        // 중복 방지하며 completedWords에 추가
+        setCompletedWords(prev => {
+          if (!prev.includes(currentWord.korean)) {
+            return [...prev, currentWord.korean];
+          }
+          return prev;
+        });
+
+        // 틀린 횟수 처리
+        if (wrongKeyAttempts > 0) {
+          // 틀렸으면 실수 단어에 추가
+          setMistakeWords(prev => {
+            if (!prev.includes(currentWord.korean)) {
+              return [...prev, currentWord.korean];
+            }
+            return prev;
+          });
+        } else {
+          // 틀리지 않았으면 실수 단어 목록에서 제거 (재도전 성공)
+          setMistakeWords(prev => {
+            if (prev.includes(currentWord.korean)) {
+              return prev.filter(word => word !== currentWord.korean);
+            }
+            return prev;
+          });
+        }
+
+        if (currentWordIndex + 1 >= words.length) {
+          // 모든 단어 완료 (useEffect에서 자동 저장됨)
+          setIsCompleted(true);
+        } else {
+          // 다음 단어로
+          setTimeout(() => {
+            setCurrentWordIndex(prev => prev + 1);
+          }, 300);
+        }
+      } else {
+        // 다음 자모로
+        setCurrentJamoIndex(prev => prev + 1);
+      }
+    } else {
+      // 오답
+      setWrongKeyAttempts(prev => prev + 1);
+      setShowError(true);
+      setTimeout(() => setShowError(false), 500);
+    }
+  }, [currentJamos, currentJamoIndex, words, currentWordIndex, isCompleted, wrongKeyAttempts, saveToLocalStorage]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [handleKeyPress]);
+
+  // 완료 시 localStorage 자동 저장
+  useEffect(() => {
+    if (isCompleted && curriculum && completedWords.length > 0) {
+      // 틀린 단어가 없으면 완료로 표시
+      const allCompleted = mistakeWords.length === 0;
+      saveToLocalStorage(allCompleted);
+    }
+  }, [isCompleted, curriculum, completedWords, mistakeWords, saveToLocalStorage]);
+
+  // 커리큘럼 선택 핸들러
+  const handleCurriculumSelect = (selectedCurriculum) => {
+    console.log('handleCurriculumSelect called with:', selectedCurriculum);
+    setCurriculum(selectedCurriculum);
+  };
+
+  // 다시 시작
+  const restart = () => {
+    fetchWords(curriculum).then(data => {
+      setWords(data);
+      setCurrentWordIndex(0);
+      setCurrentJamoIndex(0);
+      setIsCompleted(false);
+      setCompletedWords([]);
+      setMistakeWords([]);
+      setStats({ totalAttempts: 0, correctAttempts: 0 });
+      // localStorage 초기화
+      if (curriculum) {
+        localStorage.removeItem(`korean-typing-progress-${curriculum}`);
+      }
+    });
+  };
+
+  // 커리큘럼 다시 선택
+  const changeCurriculum = () => {
+    setCurriculum('');
+    setWords([]);
+    setCurrentWordIndex(0);
+    setCurrentJamoIndex(0);
+    setIsCompleted(false);
+    setCompletedWords([]);
+    setMistakeWords([]);
+    setStats({ totalAttempts: 0, correctAttempts: 0 });
+  };
+
+  // 틀린 단어만 다시
+  const retryMistakes = () => {
+    const mistakeWordObjects = words.filter(w => mistakeWords.includes(w.korean));
+    setWords(mistakeWordObjects);
+    setCurrentWordIndex(0);
+    setCurrentJamoIndex(0);
+    setIsCompleted(false);
+    // completedWords는 유지 (중요!)
+    setStats({ totalAttempts: 0, correctAttempts: 0 });
+    // mistakeWords는 현재 세션용으로만 초기화
+    const currentMistakes = [...mistakeWords];
+    setMistakeWords(currentMistakes);
+  };
+
+  // 커리큘럼 선택 화면
+  if (!curriculum) {
+    return <CurriculumSelection
+      onSelect={handleCurriculumSelect}
+      student={student}
+      curriculums={curriculums}
+      loading={curriculumsLoading}
+    />;
+  }
+
+  // 로딩 화면
+  if (words.length === 0) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
+
+  if (isCompleted) {
+    const accuracy = stats.totalAttempts > 0
+      ? ((stats.correctAttempts / stats.totalAttempts) * 100).toFixed(1)
+      : 0;
+
+    // 다음 커리큘럼 추천
+    const currentCurriculumObj = curriculums.find(c => c.id === curriculum);
+    const currentIndex = curriculums.findIndex(c => c.id === curriculum);
+    const nextCurriculum = currentIndex >= 0 && currentIndex < curriculums.length - 1
+      ? curriculums[currentIndex + 1]
+      : null;
+
+    const allCorrect = mistakeWords.length === 0;
+
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center p-8">
+        <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-3xl p-12 max-w-lg w-full border border-gray-700 shadow-2xl">
+          <div className="text-center mb-8">
+            <div className="text-6xl mb-4">{allCorrect ? '🎉' : '👏'}</div>
+            <h1 className={`text-5xl font-extrabold mb-2 tracking-tight ${
+              allCorrect ? 'text-yellow-400' : 'text-white'
+            }`}>
+              {allCorrect ? 'Perfect!' : 'Complete!'}
+            </h1>
+            {currentCurriculumObj && (
+              <p className="text-gray-400 text-lg">
+                {currentCurriculumObj.icon} {currentCurriculumObj.name} Curriculum
+              </p>
+            )}
+            {student && (
+              <p className="text-gray-500 text-sm font-light">{student}</p>
+            )}
+          </div>
+
+          <div className="space-y-5 mb-8">
+            <div className="bg-gray-900/50 rounded-2xl p-5 backdrop-blur-sm border border-gray-700">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400 text-lg">Completed Words</span>
+                <span className="font-bold text-white text-2xl">{words.length}</span>
+              </div>
+            </div>
+            <div className="bg-gradient-to-r from-blue-500/10 to-blue-600/10 rounded-2xl p-5 backdrop-blur-sm border border-blue-500/30">
+              <div className="flex justify-between items-center">
+                <span className="text-blue-300 text-lg">Accuracy</span>
+                <span className="font-bold text-blue-400 text-3xl">{accuracy}%</span>
+              </div>
+            </div>
+            <div className="bg-gray-900/50 rounded-2xl p-5 backdrop-blur-sm border border-gray-700">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400 text-lg">Incorrect Words</span>
+                <span className="font-bold text-red-400 text-2xl">{mistakeWords.length}</span>
+              </div>
+            </div>
+          </div>
+
+          {mistakeWords.length > 0 && (
+            <div className="mb-8 bg-gray-900/30 rounded-2xl p-5 border border-gray-700">
+              <h3 className="text-white font-semibold mb-3 text-lg">Incorrect Words</h3>
+              <div className="flex flex-wrap gap-2">
+                {mistakeWords.map((word, i) => (
+                  <span key={i} className="bg-red-500/20 text-red-300 px-4 py-2 rounded-lg border border-red-500/30 font-medium">
+                    {word}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {mistakeWords.length > 0 && (
+              <button
+                onClick={retryMistakes}
+                className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-bold py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-yellow-500/50"
+              >
+                Retry Incorrect Words
+              </button>
+            )}
+            {nextCurriculum && allCorrect && (
+              <button
+                onClick={() => {
+                  setCurriculum(nextCurriculum.id);
+                  setIsCompleted(false);
+                  setCurrentWordIndex(0);
+                }}
+                className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-green-500/50 flex items-center justify-center gap-2"
+              >
+                <span>Next: {nextCurriculum.icon} {nextCurriculum.name}</span>
+                <span>→</span>
+              </button>
+            )}
+            <button
+              onClick={restart}
+              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-blue-500/50"
+            >
+              Start Over
+            </button>
+            <button
+              onClick={changeCurriculum}
+              className="w-full bg-gray-700 hover:bg-gray-600 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-300 border border-gray-600"
+            >
+              Select Curriculum
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const currentWord = words[currentWordIndex];
+  const currentKey = currentJamos[currentJamoIndex]
+    ? jamoToKey[currentJamos[currentJamoIndex]]
+    : '';
+  const progress = ((currentWordIndex + (currentJamoIndex / currentJamos.length)) / words.length) * 100;
+
+  const currentCurriculum = curriculums.find(c => c.id === curriculum);
+
+  return (
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-8">
+      <div className="w-full max-w-4xl">
+        {/* 헤더 */}
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-between mb-2">
+            {/* 뒤로가기 버튼 */}
+            <button
+              onClick={changeCurriculum}
+              className="flex items-center gap-2 text-gray-500 hover:text-gray-300 transition"
+            >
+              <span className="text-xl">←</span>
+              <span className="text-sm">Back</span>
+            </button>
+
+            {/* 중앙 정보 */}
+            <div className="text-gray-400 text-sm">
+              {currentCurriculum && (
+                <span className="mr-2">
+                  {currentCurriculum.icon} {currentCurriculum.name}
+                </span>
+              )}
+              {student && `| ${student} `}
+              | Word {currentWordIndex + 1} / {words.length}
+            </div>
+
+            {/* 오른쪽 여백 (균형을 위해) */}
+            <div className="w-24"></div>
+          </div>
+
+          {/* 진행바 */}
+          <div className="w-full bg-gray-800 h-3 rounded-full overflow-hidden">
+            <div
+              className="bg-blue-600 h-full transition-all duration-300 ease-out"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
+
+        {/* 자모 분해 표시 */}
+        <div className="text-center mb-8">
+          <div className="flex justify-center gap-4 mb-6">
+            {currentJamos.map((jamo, i) => (
+              <span
+                key={i}
+                className={`text-4xl font-bold transition-all ${
+                  i === currentJamoIndex
+                    ? 'text-blue-500 scale-125'
+                    : i < currentJamoIndex
+                    ? 'text-green-500'
+                    : 'text-gray-600'
+                }`}
+              >
+                {jamo}
+              </span>
+            ))}
+          </div>
+
+          {/* 완성형 단어 */}
+          <div className={`text-6xl font-bold mb-4 transition-all ${
+            showError ? 'text-red-500 scale-110' : 'text-white'
+          }`}>
+            {currentWord.korean}
+          </div>
+
+          {/* 틀렸을 때 표시 */}
+          {showError && (
+            <div className="text-red-500 text-2xl font-bold mb-2 animate-pulse">
+              ✗ Incorrect
+            </div>
+          )}
+
+          {/* 영어 뜻과 품사 */}
+          <div className="text-2xl text-gray-400">
+            {currentWord.english}
+            <span className="text-gray-600 ml-2">[{currentWord.category}]</span>
+          </div>
+        </div>
+
+        {/* 키보드 */}
+        <div className="mt-12">
+          <Keyboard currentKey={currentKey} />
+        </div>
+
+        {/* 통계 */}
+        <div className="mt-8 text-center text-gray-500 text-sm">
+          Accuracy: {stats.totalAttempts > 0
+            ? ((stats.correctAttempts / stats.totalAttempts) * 100).toFixed(1)
+            : 0}%
+          {' | '}
+          Keystrokes: {stats.totalAttempts}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default App;
