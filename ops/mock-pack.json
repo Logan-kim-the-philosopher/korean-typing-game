@@ -1,0 +1,24 @@
+{
+  "type": "vocabulary",
+  "level": "A1",
+  "topic": "Test",
+  "sub_topic": "Demo",
+  "title": "A1 · Test · Demo",
+  "items": [
+    {
+      "korean": "수업",
+      "english": "class",
+      "pos": "noun"
+    },
+    {
+      "korean": "학교",
+      "english": "school",
+      "pos": "noun"
+    },
+    {
+      "korean": "시험",
+      "english": "exam",
+      "pos": "noun"
+    }
+  ]
+}
