@@ -1,6 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { assemble } from 'es-hangul';
-
 // Airtable 설정 (환경 변수 사용)
 const USE_MOCK_DATA = !import.meta.env.VITE_AIRTABLE_TOKEN; // 토큰이 없으면 Mock 데이터 사용
 const AIRTABLE_BASE_ID = import.meta.env.VITE_AIRTABLE_BASE_ID || '';
@@ -504,6 +502,7 @@ function App() {
   const mobileJamoCountRef = useRef(0);
   const mobileTypedCountRef = useRef(0);
   const mobileComposingRef = useRef(false);
+  const mobileDebugRef = useRef(false);
   const wordRef = useRef(null);
 
   // URL 파라미터에서 커리큘럼, 레벨, 학생 이름 가져오기
@@ -538,6 +537,13 @@ function App() {
     window.addEventListener('resize', updateKeyboardLayout);
     return () => window.removeEventListener('resize', updateKeyboardLayout);
   }, []);
+
+  useEffect(() => {
+    if (useMobileKeyboard) {
+      const params = new URLSearchParams(window.location.search);
+      mobileDebugRef.current = params.has('debugMobile');
+    }
+  }, [useMobileKeyboard]);
 
   useEffect(() => {
     if (!useMobileKeyboard || !window.visualViewport) return;
@@ -777,13 +783,20 @@ function App() {
 
   const handleMobileInput = useCallback((event) => {
     const rawValue = event.target.value;
-    if (mobileComposingRef.current) {
+    const isComposing = event.nativeEvent?.isComposing || event.isComposing || mobileComposingRef.current;
+    if (isComposing) {
       setMobileInput(rawValue);
+      if (mobileDebugRef.current) {
+        console.log('[mobile-input] composing', {
+          rawValue,
+          inputType: event.nativeEvent?.inputType || '',
+          data: event.nativeEvent?.data || ''
+        });
+      }
       return;
     }
-    const typedJamos = disassembleHangul(rawValue).filter((char) => /[ㄱ-ㅎㅏ-ㅣ]/.test(char));
-    const effectiveTypedLen = Math.min(typedJamos.length, currentJamos.length);
-    const maxLen = effectiveTypedLen;
+    const typedJamos = disassembleHangul(rawValue);
+    const maxLen = Math.min(typedJamos.length, currentJamos.length);
     let prefixLen = 0;
 
     for (let i = 0; i < maxLen; i += 1) {
@@ -791,14 +804,11 @@ function App() {
       prefixLen += 1;
     }
 
-    const sanitizedJamos = currentJamos.slice(0, prefixLen);
-    const sanitizedValue = assemble(sanitizedJamos);
-
     const prevTyped = mobileTypedCountRef.current;
     const prevMatched = mobileJamoCountRef.current;
-    const deltaTyped = Math.max(0, effectiveTypedLen - prevTyped);
+    const deltaTyped = Math.max(0, typedJamos.length - prevTyped);
     const deltaCorrect = Math.max(0, prefixLen - prevMatched);
-    const hasMismatch = prefixLen < effectiveTypedLen && prefixLen < currentJamos.length;
+    const hasMismatch = typedJamos.length > prefixLen;
 
     if (deltaTyped > 0) {
       setStats(prev => ({
@@ -812,12 +822,24 @@ function App() {
       }
     }
 
-    mobileTypedCountRef.current = effectiveTypedLen;
+    if (mobileDebugRef.current) {
+      console.log('[mobile-input] update', {
+        rawValue,
+        typedJamos,
+        currentJamos,
+        prefixLen,
+        typedLen: typedJamos.length,
+        targetLen: currentJamos.length,
+        inputType: event.nativeEvent?.inputType || ''
+      });
+    }
+
+    mobileTypedCountRef.current = typedJamos.length;
     mobileJamoCountRef.current = prefixLen;
-    setMobileInput(sanitizedValue);
+    setMobileInput(rawValue);
     setCurrentJamoIndex(prefixLen);
 
-    if (prefixLen === currentJamos.length) {
+    if (prefixLen === currentJamos.length && typedJamos.length === currentJamos.length) {
       setMobileInput('');
       mobileJamoCountRef.current = 0;
       mobileTypedCountRef.current = 0;
@@ -830,10 +852,16 @@ function App() {
 
   const handleMobileCompositionStart = () => {
     mobileComposingRef.current = true;
+    if (mobileDebugRef.current) {
+      console.log('[mobile-input] compositionstart');
+    }
   };
 
   const handleMobileCompositionEnd = () => {
     mobileComposingRef.current = false;
+    if (mobileDebugRef.current) {
+      console.log('[mobile-input] compositionend');
+    }
   };
 
   const handleMobileFocus = useCallback(() => {
