@@ -16,7 +16,7 @@ DIST_DIR = Path(os.getenv("DIST_DIR", DEFAULT_DIST_DIR)).resolve()
 DEFAULT_PACKS_DIR = (BASE_DIR / ".." / "packs").resolve()
 PACKS_DIR = Path(os.getenv("PACKS_DIR", DEFAULT_PACKS_DIR)).resolve()
 
-app = Flask(__name__, static_folder=str(DIST_DIR), static_url_path="")
+app = Flask(__name__)
 PACKS_DIR.mkdir(parents=True, exist_ok=True)
 
 HANGUL_START = 0xAC00
