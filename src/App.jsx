@@ -549,10 +549,6 @@ function App() {
     }
   }, [useMobileKeyboard, currentWordIndex]);
 
-  useEffect(() => {
-    document.body.classList.toggle('mobile-locked', useMobileKeyboard);
-    return () => document.body.classList.remove('mobile-locked');
-  }, [useMobileKeyboard]);
 
   // 커리큘럼이 변경되면 해당 커리큘럼의 데이터 로드
   useEffect(() => {
