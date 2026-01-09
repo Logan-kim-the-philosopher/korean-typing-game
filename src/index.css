@@ -383,7 +383,7 @@ body::after {
   position: sticky;
   bottom: calc(12px + env(safe-area-inset-bottom) + var(--keyboard-offset, 0px));
   z-index: 20;
-  padding: 12px 0;
+  padding: 6px 0 2px;
 }
 
 .mobile-input {
@@ -459,7 +459,20 @@ body::after {
 
 @media (max-width: 840px) {
   .mobile-stack {
-    gap: 24px;
+    gap: 16px;
+  }
+
+  .progress-track {
+    display: none;
+  }
+
+  .progress-shell {
+    padding-bottom: 0;
+    margin-bottom: -8px;
+  }
+
+  .mobile-input-wrap {
+    margin-top: -6px;
   }
 }
 
