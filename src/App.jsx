@@ -877,8 +877,21 @@ function App() {
 
         {/* 자모 분해 표시 */}
         <div className="card-panel panel-soft typing-card reveal">
-          <div className="pill mb-4">Korean</div>
-          <div className="jamo-row">
+
+          <div className={`word-display ${showError ? 'is-error' : ''}`}>
+            {currentWord.korean}
+          </div>
+
+          {showError && (
+            <div className="error-text">✗ Incorrect</div>
+          )}
+
+          <div className="word-translation">
+            {currentWord.english}
+            <span className="category">[{currentWord.category}]</span>
+          </div>
+
+          <div className="jamo-row hint">
             {currentJamos.map((jamo, i) => (
               <span
                 key={i}
@@ -893,19 +906,6 @@ function App() {
                 {jamo}
               </span>
             ))}
-          </div>
-
-          <div className={`word-display ${showError ? 'is-error' : ''}`}>
-            {currentWord.korean}
-          </div>
-
-          {showError && (
-            <div className="error-text">✗ Incorrect</div>
-          )}
-
-          <div className="word-translation">
-            {currentWord.english}
-            <span className="category">[{currentWord.category}]</span>
           </div>
         </div>
 

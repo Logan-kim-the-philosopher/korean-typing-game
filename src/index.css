@@ -217,7 +217,7 @@ body::after {
   flex-wrap: wrap;
   justify-content: center;
   gap: 12px;
-  margin-bottom: 20px;
+  margin-top: 18px;
 }
 
 .jamo-chip {
@@ -228,6 +228,17 @@ body::after {
   border-radius: 14px;
   padding: 8px 14px;
   transition: transform 200ms ease, color 200ms ease, background 200ms ease;
+}
+
+.jamo-row.hint {
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.jamo-row.hint .jamo-chip {
+  font-size: 18px;
+  padding: 6px 10px;
+  border-radius: 12px;
 }
 
 .jamo-chip.is-current {
