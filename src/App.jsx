@@ -503,6 +503,7 @@ function App() {
   const mobileInputRef = useRef(null);
   const mobileJamoCountRef = useRef(0);
   const mobileTypedCountRef = useRef(0);
+  const mobileComposingRef = useRef(false);
   const wordRef = useRef(null);
 
   // URL 파라미터에서 커리큘럼, 레벨, 학생 이름 가져오기
@@ -776,6 +777,10 @@ function App() {
 
   const handleMobileInput = useCallback((event) => {
     const rawValue = event.target.value;
+    if (mobileComposingRef.current) {
+      setMobileInput(rawValue);
+      return;
+    }
     const typedJamos = disassembleHangul(rawValue);
     const maxLen = Math.min(typedJamos.length, currentJamos.length);
     let prefixLen = 0;
@@ -805,7 +810,7 @@ function App() {
       }
     }
 
-    mobileTypedCountRef.current = typedJamos.length;
+    mobileTypedCountRef.current = sanitizedJamos.length;
     mobileJamoCountRef.current = prefixLen;
     setMobileInput(sanitizedValue);
     setCurrentJamoIndex(prefixLen);
@@ -820,6 +825,14 @@ function App() {
       completeWord();
     }
   }, [currentJamos, completeWord]);
+
+  const handleMobileCompositionStart = () => {
+    mobileComposingRef.current = true;
+  };
+
+  const handleMobileCompositionEnd = () => {
+    mobileComposingRef.current = false;
+  };
 
   const handleMobileFocus = useCallback(() => {
     if (!useMobileKeyboard) return;
@@ -1104,6 +1117,8 @@ function App() {
               className="mobile-input"
               value={mobileInput}
               onChange={handleMobileInput}
+              onCompositionStart={handleMobileCompositionStart}
+              onCompositionEnd={handleMobileCompositionEnd}
               onFocus={handleMobileFocus}
               placeholder="Tap to type in Korean"
               autoComplete="off"
