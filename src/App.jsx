@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 // Airtable 설정 (환경 변수 사용)
 const USE_MOCK_DATA = !import.meta.env.VITE_AIRTABLE_TOKEN; // 토큰이 없으면 Mock 데이터 사용
@@ -497,6 +497,9 @@ function App() {
   const [curriculums, setCurriculums] = useState([]);
   const [curriculumsLoading, setCurriculumsLoading] = useState(true);
   const [useMobileKeyboard, setUseMobileKeyboard] = useState(false);
+  const [mobileInput, setMobileInput] = useState('');
+  const mobileInputRef = useRef(null);
+  const mobileJamoCountRef = useRef(0);
 
   // URL 파라미터에서 커리큘럼, 레벨, 학생 이름 가져오기
   useEffect(() => {
@@ -524,12 +527,18 @@ function App() {
 
   useEffect(() => {
     const updateKeyboardLayout = () => {
-      setUseMobileKeyboard(window.innerWidth <= 720);
+      setUseMobileKeyboard(window.innerWidth <= 840);
     };
     updateKeyboardLayout();
     window.addEventListener('resize', updateKeyboardLayout);
     return () => window.removeEventListener('resize', updateKeyboardLayout);
   }, []);
+
+  useEffect(() => {
+    if (useMobileKeyboard && mobileInputRef.current) {
+      mobileInputRef.current.focus();
+    }
+  }, [useMobileKeyboard, currentWordIndex]);
 
   // 커리큘럼이 변경되면 해당 커리큘럼의 데이터 로드
   useEffect(() => {
@@ -580,6 +589,8 @@ function App() {
       setCurrentJamos(jamos);
       setCurrentJamoIndex(0);
       setWrongKeyAttempts(0);
+      setMobileInput('');
+      mobileJamoCountRef.current = 0;
     }
   }, [words, currentWordIndex]);
 
@@ -608,8 +619,45 @@ function App() {
     localStorage.setItem(`korean-typing-progress-${curriculum}`, JSON.stringify(data));
   }, [curriculum, completedWords, stats, mistakeWords]);
 
+  const completeWord = useCallback(() => {
+    const currentWord = words[currentWordIndex];
+    if (!currentWord) return;
+
+    setCompletedWords(prev => {
+      if (!prev.includes(currentWord.korean)) {
+        return [...prev, currentWord.korean];
+      }
+      return prev;
+    });
+
+    if (wrongKeyAttempts > 0) {
+      setMistakeWords(prev => {
+        if (!prev.includes(currentWord.korean)) {
+          return [...prev, currentWord.korean];
+        }
+        return prev;
+      });
+    } else {
+      setMistakeWords(prev => {
+        if (prev.includes(currentWord.korean)) {
+          return prev.filter(word => word !== currentWord.korean);
+        }
+        return prev;
+      });
+    }
+
+    if (currentWordIndex + 1 >= words.length) {
+      setIsCompleted(true);
+    } else {
+      setTimeout(() => {
+        setCurrentWordIndex(prev => prev + 1);
+      }, 300);
+    }
+  }, [words, currentWordIndex, wrongKeyAttempts]);
+
   // 키 입력 처리
   const handleKeyPress = useCallback((event) => {
+    if (useMobileKeyboard) return;
     if (isCompleted || words.length === 0) return;
 
     const currentJamo = currentJamos[currentJamoIndex];
@@ -655,46 +703,8 @@ function App() {
       }));
 
       if (currentJamoIndex + 1 >= currentJamos.length) {
-        // 단어 완성
-        const currentWord = words[currentWordIndex];
-        // 중복 방지하며 completedWords에 추가
-        setCompletedWords(prev => {
-          if (!prev.includes(currentWord.korean)) {
-            return [...prev, currentWord.korean];
-          }
-          return prev;
-        });
-
-        // 틀린 횟수 처리
-        if (wrongKeyAttempts > 0) {
-          // 틀렸으면 실수 단어에 추가
-          setMistakeWords(prev => {
-            if (!prev.includes(currentWord.korean)) {
-              return [...prev, currentWord.korean];
-            }
-            return prev;
-          });
-        } else {
-          // 틀리지 않았으면 실수 단어 목록에서 제거 (재도전 성공)
-          setMistakeWords(prev => {
-            if (prev.includes(currentWord.korean)) {
-              return prev.filter(word => word !== currentWord.korean);
-            }
-            return prev;
-          });
-        }
-
-        if (currentWordIndex + 1 >= words.length) {
-          // 모든 단어 완료 (useEffect에서 자동 저장됨)
-          setIsCompleted(true);
-        } else {
-          // 다음 단어로
-          setTimeout(() => {
-            setCurrentWordIndex(prev => prev + 1);
-          }, 300);
-        }
+        completeWord();
       } else {
-        // 다음 자모로
         setCurrentJamoIndex(prev => prev + 1);
       }
     } else {
@@ -703,12 +713,59 @@ function App() {
       setShowError(true);
       setTimeout(() => setShowError(false), 500);
     }
-  }, [currentJamos, currentJamoIndex, words, currentWordIndex, isCompleted, wrongKeyAttempts, saveToLocalStorage]);
+  }, [currentJamos, currentJamoIndex, words, isCompleted, useMobileKeyboard, completeWord, saveToLocalStorage]);
+
+  const handleMobileInput = useCallback((event) => {
+    const value = event.target.value;
+    const typedJamos = disassembleHangul(value);
+    const isPrefix = typedJamos.length <= currentJamos.length
+      && typedJamos.every((jamo, i) => jamo === currentJamos[i]);
+
+    if (!isPrefix) {
+      setShowError(true);
+      setTimeout(() => setShowError(false), 500);
+      setWrongKeyAttempts(prev => prev + 1);
+      setStats(prev => ({
+        ...prev,
+        totalAttempts: prev.totalAttempts + 1
+      }));
+      setMobileInput('');
+      mobileJamoCountRef.current = 0;
+      setCurrentJamoIndex(0);
+      if (mobileInputRef.current) {
+        mobileInputRef.current.value = '';
+      }
+      return;
+    }
+
+    const prevCount = mobileJamoCountRef.current;
+    if (typedJamos.length > prevCount) {
+      const delta = typedJamos.length - prevCount;
+      setStats(prev => ({
+        totalAttempts: prev.totalAttempts + delta,
+        correctAttempts: prev.correctAttempts + delta
+      }));
+    }
+
+    mobileJamoCountRef.current = typedJamos.length;
+    setMobileInput(value);
+    setCurrentJamoIndex(typedJamos.length);
+
+    if (typedJamos.length === currentJamos.length) {
+      setMobileInput('');
+      mobileJamoCountRef.current = 0;
+      if (mobileInputRef.current) {
+        mobileInputRef.current.value = '';
+      }
+      completeWord();
+    }
+  }, [currentJamos, completeWord]);
 
   useEffect(() => {
+    if (useMobileKeyboard) return;
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [handleKeyPress]);
+  }, [handleKeyPress, useMobileKeyboard]);
 
   // 완료 시 localStorage 자동 저장
   useEffect(() => {
@@ -965,9 +1022,26 @@ function App() {
           </div>
         </div>
 
-        <div className="keyboard-wrap reveal">
-          <Keyboard currentKey={currentKey} isMobile={useMobileKeyboard} />
-        </div>
+        {useMobileKeyboard ? (
+          <div className="mobile-input-wrap reveal">
+            <input
+              ref={mobileInputRef}
+              className="mobile-input"
+              value={mobileInput}
+              onChange={handleMobileInput}
+              placeholder="Tap to type in Korean"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck="false"
+              inputMode="text"
+            />
+            <div className="mobile-input-hint">Use your phone keyboard to type</div>
+          </div>
+        ) : (
+          <div className="keyboard-wrap reveal">
+            <Keyboard currentKey={currentKey} isMobile={false} />
+          </div>
+        )}
 
         <div className="stats-footer">
           Accuracy: {stats.totalAttempts > 0
