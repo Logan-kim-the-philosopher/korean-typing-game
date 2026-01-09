@@ -272,8 +272,8 @@ async function fetchWords(curriculum) {
 }
 
 // 키보드 컴포넌트
-function Keyboard({ currentKey }) {
-  const keyLayout = [
+function Keyboard({ currentKey, isMobile }) {
+  const desktopLayout = [
     [
       { kor: 'ㅂ', eng: 'q' }, { kor: 'ㅈ', eng: 'w' }, { kor: 'ㄷ', eng: 'e' }, { kor: 'ㄱ', eng: 'r' },
       { kor: 'ㅅ', eng: 't' }, { kor: 'ㅛ', eng: 'y' }, { kor: 'ㅕ', eng: 'u' }, { kor: 'ㅑ', eng: 'i' },
@@ -289,6 +289,33 @@ function Keyboard({ currentKey }) {
       { kor: 'ㅠ', eng: 'b' }, { kor: 'ㅜ', eng: 'n' }, { kor: 'ㅡ', eng: 'm' }
     ]
   ];
+
+  const mobileLayout = [
+    [
+      { kor: 'ㅂ', eng: 'q' }, { kor: 'ㅈ', eng: 'w' }, { kor: 'ㄷ', eng: 'e' }, { kor: 'ㄱ', eng: 'r' },
+      { kor: 'ㅅ', eng: 't' }
+    ],
+    [
+      { kor: 'ㅛ', eng: 'y' }, { kor: 'ㅕ', eng: 'u' }, { kor: 'ㅑ', eng: 'i' }, { kor: 'ㅐ', eng: 'o' },
+      { kor: 'ㅔ', eng: 'p' }
+    ],
+    [
+      { kor: 'ㅁ', eng: 'a' }, { kor: 'ㄴ', eng: 's' }, { kor: 'ㅇ', eng: 'd' }, { kor: 'ㄹ', eng: 'f' },
+      { kor: 'ㅎ', eng: 'g' }
+    ],
+    [
+      { kor: 'ㅗ', eng: 'h' }, { kor: 'ㅓ', eng: 'j' }, { kor: 'ㅏ', eng: 'k' }, { kor: 'ㅣ', eng: 'l' }
+    ],
+    [
+      { kor: 'ㅋ', eng: 'z' }, { kor: 'ㅌ', eng: 'x' }, { kor: 'ㅊ', eng: 'c' }, { kor: 'ㅍ', eng: 'v' },
+      { kor: 'ㅠ', eng: 'b' }
+    ],
+    [
+      { kor: 'ㅜ', eng: 'n' }, { kor: 'ㅡ', eng: 'm' }
+    ]
+  ];
+
+  const keyLayout = isMobile ? mobileLayout : desktopLayout;
 
   // Shift 키가 필요한지 확인 (대문자인 경우)
   const needsShift = currentKey && currentKey === currentKey.toUpperCase() && currentKey !== currentKey.toLowerCase();
@@ -317,29 +344,49 @@ function Keyboard({ currentKey }) {
 
   return (
     <div className="keyboard-grid">
-      {keyLayout.slice(0, 2).map((row, i) => (
-        <div key={i} className="keyboard-row">
-          {row.map((key) => (
-            <div key={key.eng} className={getKeyClass(key)}>
-              <div className="text-lg font-bold">{key.kor}</div>
-              <div className="key-sub">{key.eng.toUpperCase()}</div>
+      {isMobile ? (
+        <>
+          {keyLayout.map((row, i) => (
+            <div key={i} className="keyboard-row">
+              {row.map((key) => (
+                <div key={key.eng} className={getKeyClass(key)}>
+                  <div className="text-lg font-bold">{key.kor}</div>
+                  <div className="key-sub">{key.eng.toUpperCase()}</div>
+                </div>
+              ))}
             </div>
           ))}
-        </div>
-      ))}
-      {/* 세 번째 줄: Shift 키와 함께 */}
-      <div className="keyboard-row">
-        <div className={getShiftKeyClass()}>
-          <span className="text-sm">Shift</span>
-        </div>
-        {keyLayout[2].map((key) => (
-          <div key={key.eng} className={getKeyClass(key)}>
-            <div className="text-lg font-bold">{key.kor}</div>
-            <div className="key-sub">{key.eng.toUpperCase()}</div>
+          <div className="keyboard-row keyboard-row-centered">
+            <div className={getShiftKeyClass()}>
+              <span className="text-sm">Shift</span>
+            </div>
           </div>
-        ))}
-      </div>
-      {/* 네 번째 줄: 스페이스바 */}
+        </>
+      ) : (
+        <>
+          {desktopLayout.slice(0, 2).map((row, i) => (
+            <div key={i} className="keyboard-row">
+              {row.map((key) => (
+                <div key={key.eng} className={getKeyClass(key)}>
+                  <div className="text-lg font-bold">{key.kor}</div>
+                  <div className="key-sub">{key.eng.toUpperCase()}</div>
+                </div>
+              ))}
+            </div>
+          ))}
+          <div className="keyboard-row">
+            <div className={getShiftKeyClass()}>
+              <span className="text-sm">Shift</span>
+            </div>
+            {desktopLayout[2].map((key) => (
+              <div key={key.eng} className={getKeyClass(key)}>
+                <div className="text-lg font-bold">{key.kor}</div>
+                <div className="key-sub">{key.eng.toUpperCase()}</div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
       <div className="keyboard-row keyboard-row-space">
         <div className={getSpacebarClass()}>
           <span className="text-sm">Spacebar</span>
@@ -449,6 +496,7 @@ function App() {
   const [showError, setShowError] = useState(false);
   const [curriculums, setCurriculums] = useState([]);
   const [curriculumsLoading, setCurriculumsLoading] = useState(true);
+  const [useMobileKeyboard, setUseMobileKeyboard] = useState(false);
 
   // URL 파라미터에서 커리큘럼, 레벨, 학생 이름 가져오기
   useEffect(() => {
@@ -472,6 +520,15 @@ function App() {
       setCurriculums(MOCK_CURRICULUMS);
       setCurriculumsLoading(false);
     });
+  }, []);
+
+  useEffect(() => {
+    const updateKeyboardLayout = () => {
+      setUseMobileKeyboard(window.innerWidth <= 720);
+    };
+    updateKeyboardLayout();
+    window.addEventListener('resize', updateKeyboardLayout);
+    return () => window.removeEventListener('resize', updateKeyboardLayout);
   }, []);
 
   // 커리큘럼이 변경되면 해당 커리큘럼의 데이터 로드
@@ -843,7 +900,7 @@ function App() {
     <div className="app-shell">
       <div className="w-full max-w-5xl space-y-8">
         {/* 헤더 */}
-        <div className="card-panel reveal">
+        <div className="progress-shell reveal">
           <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
             <button
               onClick={changeCurriculum}
@@ -853,7 +910,7 @@ function App() {
               <span className="text-sm">Back</span>
             </button>
 
-            <div className="text-sm text-muted">
+            <div className="progress-title">
               {currentCurriculum && (
                 <span className="mr-2">
                   {currentCurriculum.icon} {currentCurriculum.name}
@@ -909,7 +966,7 @@ function App() {
         </div>
 
         <div className="keyboard-wrap reveal">
-          <Keyboard currentKey={currentKey} />
+          <Keyboard currentKey={currentKey} isMobile={useMobileKeyboard} />
         </div>
 
         <div className="stats-footer">

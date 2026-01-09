@@ -115,6 +115,16 @@ body::after {
   padding: clamp(24px, 3.5vw, 40px);
 }
 
+.progress-shell {
+  padding: 0 6px;
+}
+
+.progress-title {
+  font-size: clamp(1rem, 2.2vw, 1.25rem);
+  font-weight: 600;
+  color: #5a6883;
+}
+
 .panel-soft {
   background: linear-gradient(120deg, #f2f6ff 0%, #ffffff 55%, #fff4ec 100%);
 }
@@ -362,10 +372,15 @@ body::after {
 .keyboard-row {
   display: flex;
   gap: calc(12px * var(--key-scale));
+  justify-content: center;
 }
 
 .keyboard-row-space {
   width: 100%;
+  justify-content: center;
+}
+
+.keyboard-row-centered {
   justify-content: center;
 }
 
