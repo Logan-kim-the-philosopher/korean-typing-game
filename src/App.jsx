@@ -1078,7 +1078,6 @@ function App() {
               spellCheck="false"
               inputMode="text"
             />
-            <div className="mobile-input-hint">Use your phone keyboard to type</div>
           </div>
         ) : (
           <div className="keyboard-wrap reveal">

@@ -406,10 +406,6 @@ body::after {
   box-shadow: 0 12px 28px rgba(47, 107, 255, 0.18);
 }
 
-.mobile-input-hint {
-  color: #8a94aa;
-  font-size: 12px;
-}
 
 .modal-backdrop {
   position: fixed;
@@ -459,16 +455,16 @@ body::after {
 
 @media (max-width: 840px) {
   .mobile-stack {
-    gap: 16px;
+    gap: 12px;
   }
 
   .progress-shell {
     padding-bottom: 0;
-    margin-bottom: -8px;
+    margin-bottom: -14px;
   }
 
   .mobile-input-wrap {
-    margin-top: -6px;
+    margin-top: -10px;
   }
 }
 
