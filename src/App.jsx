@@ -270,6 +270,87 @@ async function fetchWords(curriculum) {
   }
 }
 
+const MY_LEARNING_KEY = 'typing_my_learning_packs';
+const PACK_RESULT_PREFIX = 'typing_pack_result_';
+
+const getRouteFromPath = (pathname) => {
+  if (pathname.startsWith('/players/admin')) return 'admin';
+  if (pathname.startsWith('/players/my-learning')) return 'my-learning';
+  if (pathname.startsWith('/players/result')) return 'result';
+  if (pathname.startsWith('/players/typing')) return 'player';
+  return 'home';
+};
+
+const slugify = (text) => (text || '')
+  .toString()
+  .toLowerCase()
+  .replace(/[^\w\sㄱ-ㅎㅏ-ㅣ가-힣-]/g, '')
+  .replace(/\s+/g, '_')
+  .replace(/^_+|_+$/g, '');
+
+const buildGroupKey = (pack) => {
+  if (!pack?.level || !pack?.topic) return '';
+  return `${slugify(pack.level)}_${slugify(pack.topic)}`;
+};
+
+const formatDate = (timestamp) => {
+  if (!timestamp) return '';
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('default', { month: 'short', day: 'numeric' }).format(date);
+};
+
+const readMyLearningPacks = () => {
+  if (typeof localStorage === 'undefined') return [];
+  const raw = localStorage.getItem(MY_LEARNING_KEY);
+  if (!raw) return [];
+  try {
+    const data = JSON.parse(raw);
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeMyLearningPacks = (packs) => {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem(MY_LEARNING_KEY, JSON.stringify(packs));
+};
+
+const readPackResult = (packId) => {
+  if (!packId || typeof localStorage === 'undefined') return null;
+  const raw = localStorage.getItem(`${PACK_RESULT_PREFIX}${packId}`);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
+const groupMyLearningPacks = (packs) => {
+  const groups = {};
+  packs.forEach((pack) => {
+    const key = buildGroupKey(pack);
+    if (!key) return;
+    if (!groups[key]) {
+      groups[key] = {
+        key,
+        level: pack.level,
+        topic: pack.topic,
+        type: pack.type,
+        packs: [],
+        latest: pack.timestamp
+      };
+    }
+    groups[key].packs.push(pack);
+    if (pack.timestamp > groups[key].latest) {
+      groups[key].latest = pack.timestamp;
+    }
+  });
+  return Object.values(groups).sort((a, b) => b.latest - a.latest);
+};
+
 // 키보드 컴포넌트
 function Keyboard({ currentKey, isMobile }) {
   const desktopLayout = [
@@ -480,6 +561,7 @@ function CurriculumSelection({ onSelect, student, curriculums, loading }) {
 
 // 메인 앱 컴포넌트
 function App() {
+  const [route, setRoute] = useState(() => getRouteFromPath(window.location.pathname));
   const [words, setWords] = useState([]);
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [currentJamoIndex, setCurrentJamoIndex] = useState(0);
@@ -503,12 +585,32 @@ function App() {
     return params.get('pack') || '';
   });
   const [packMeta, setPackMeta] = useState(null);
+  const [packResult, setPackResult] = useState(null);
+  const [myLearningPacks, setMyLearningPacks] = useState(() => readMyLearningPacks());
+  const [adminPacks, setAdminPacks] = useState([]);
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [adminQuery, setAdminQuery] = useState('');
+  const [adminFilter, setAdminFilter] = useState('all');
+  const [adminSort, setAdminSort] = useState('newest');
   const mobileInputRef = useRef(null);
   const mobileJamoCountRef = useRef(0);
   const mobileTypedCountRef = useRef(0);
   const mobileComposingRef = useRef(false);
   const mobileDebugRef = useRef(false);
   const wordRef = useRef(null);
+
+  const navigate = useCallback((path) => {
+    window.history.pushState(null, '', path);
+    setRoute(getRouteFromPath(path));
+  }, []);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setRoute(getRouteFromPath(window.location.pathname));
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // URL 파라미터에서 커리큘럼, 레벨, 학생 이름 가져오기
   useEffect(() => {
@@ -521,8 +623,8 @@ function App() {
     if (urlCurriculum && !urlPack) setCurriculum(urlCurriculum);
     if (urlLevel) setLevel(urlLevel);
     if (urlStudent) setStudent(urlStudent);
-    if (urlPack && urlPack !== packId) setPackId(urlPack);
-  }, [packId]);
+    if (urlPack !== packId) setPackId(urlPack || '');
+  }, [route]);
 
   // 커리큘럼 목록 로드
   useEffect(() => {
@@ -536,6 +638,51 @@ function App() {
       setCurriculumsLoading(false);
     });
   }, [packId]);
+
+  useEffect(() => {
+    if (route === 'my-learning' || route === 'home') {
+      setMyLearningPacks(readMyLearningPacks());
+    }
+  }, [route]);
+
+  useEffect(() => {
+    if (!packId || !packMeta?.title) return;
+    const existing = readMyLearningPacks();
+    const now = Date.now();
+    const packEntry = {
+      packId,
+      title: packMeta.title,
+      type: packMeta.type,
+      level: packMeta.level,
+      topic: packMeta.topic,
+      sub_topic: packMeta.sub_topic,
+      timestamp: now
+    };
+
+    const updated = existing.filter(item => item.packId !== packId);
+    updated.unshift(packEntry);
+    writeMyLearningPacks(updated);
+    setMyLearningPacks(updated);
+  }, [packId, packMeta]);
+
+  useEffect(() => {
+    if (route !== 'admin') return;
+    setAdminLoading(true);
+    fetch('/api/packs')
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to load packs');
+        return res.json();
+      })
+      .then(data => {
+        setAdminPacks(Array.isArray(data.packs) ? data.packs : []);
+      })
+      .catch(() => {
+        setAdminPacks([]);
+      })
+      .finally(() => {
+        setAdminLoading(false);
+      });
+  }, [route]);
 
   useEffect(() => {
     const updateKeyboardLayout = () => {
@@ -552,6 +699,12 @@ function App() {
       mobileDebugRef.current = params.has('debugMobile');
     }
   }, [useMobileKeyboard]);
+
+  useEffect(() => {
+    if (packId && route !== 'player' && route !== 'result') {
+      navigate(`/players/typing/?pack=${packId}`);
+    }
+  }, [packId, route, navigate]);
 
   useEffect(() => {
     if (!useMobileKeyboard || !window.visualViewport) return;
@@ -948,6 +1101,41 @@ function App() {
     }
   }, [isCompleted, progressKey, completedWords, mistakeWords, saveToLocalStorage]);
 
+  useEffect(() => {
+    if (!packId || !isCompleted || words.length === 0) return;
+    const accuracy = stats.totalAttempts > 0
+      ? ((stats.correctAttempts / stats.totalAttempts) * 100).toFixed(1)
+      : '0.0';
+    const result = {
+      packId,
+      title: packMeta?.title || '',
+      type: packMeta?.type || '',
+      level: packMeta?.level || '',
+      topic: packMeta?.topic || '',
+      sub_topic: packMeta?.sub_topic || '',
+      totalWords: words.length,
+      incorrectWords: mistakeWords,
+      accuracy,
+      completedAt: Date.now()
+    };
+    localStorage.setItem(`${PACK_RESULT_PREFIX}${packId}`, JSON.stringify(result));
+    setPackResult(result);
+    if (route !== 'result') {
+      navigate(`/players/result/?pack=${packId}`);
+    }
+  }, [packId, isCompleted, words, stats, mistakeWords, packMeta, route, navigate]);
+
+  useEffect(() => {
+    if (route !== 'result' || !packId) return;
+    const saved = localStorage.getItem(`${PACK_RESULT_PREFIX}${packId}`);
+    if (!saved) return;
+    try {
+      setPackResult(JSON.parse(saved));
+    } catch {
+      setPackResult(null);
+    }
+  }, [route, packId]);
+
   // 커리큘럼 선택 핸들러
   const handleCurriculumSelect = (selectedCurriculum) => {
     console.log('handleCurriculumSelect called with:', selectedCurriculum);
@@ -1017,17 +1205,281 @@ function App() {
     setMistakeWords(currentMistakes);
   };
 
-  // 커리큘럼 선택 화면
-  if (!curriculum && !packId) {
-    return <CurriculumSelection
-      onSelect={handleCurriculumSelect}
-      student={student}
-      curriculums={curriculums}
-      loading={curriculumsLoading}
-    />;
+  const normalizedRoute = route === 'home' ? 'my-learning' : route;
+  const groupParam = new URLSearchParams(window.location.search).get('group') || '';
+  const groupedPacks = groupMyLearningPacks(myLearningPacks);
+  const selectedGroup = groupedPacks.find(group => group.key === groupParam);
+
+  const filteredAdminPacks = adminPacks
+    .filter(pack => adminFilter === 'all' || pack.type === adminFilter)
+    .filter(pack => {
+      if (!adminQuery) return true;
+      const query = adminQuery.toLowerCase();
+      const haystack = [
+        pack.pack_id,
+        pack.title,
+        pack.level,
+        pack.topic,
+        pack.sub_topic
+      ].filter(Boolean).join(' ').toLowerCase();
+      return haystack.includes(query);
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.created_at || 0);
+      const dateB = new Date(b.created_at || 0);
+      return adminSort === 'oldest' ? dateA - dateB : dateB - dateA;
+    });
+
+  const handleSelectPack = (targetPackId) => {
+    navigate(`/players/typing/?pack=${targetPackId}`);
+  };
+
+  const handleSelectGroup = (groupKey) => {
+    navigate(`/players/my-learning/?group=${groupKey}`);
+  };
+
+  const handleClearGroup = () => {
+    navigate('/players/my-learning/');
+  };
+
+  const handleDeletePack = (targetPackId) => {
+    if (!window.confirm(`Delete ${targetPackId}?`)) return;
+    fetch(`/api/packs/${targetPackId}`, { method: 'DELETE' })
+      .then(res => {
+        if (!res.ok) throw new Error('Delete failed');
+        setAdminPacks(prev => prev.filter(pack => pack.pack_id !== targetPackId));
+      })
+      .catch(() => {});
+  };
+
+  if (normalizedRoute === 'admin') {
+    return (
+      <div className="app-shell">
+        <div className="page-shell">
+          <div className="page-header">
+            <div>
+              <h1 className="page-title"><span>Typing</span> Admin</h1>
+              <p className="page-subtitle">Manage packs, groups, and metadata.</p>
+            </div>
+            <div className="toolbar-actions">
+              <button className="btn-secondary" onClick={() => navigate('/players/my-learning/')}>My Learning</button>
+            </div>
+          </div>
+
+          <div className="toolbar">
+            <input
+              className="input-field"
+              placeholder="Search packs"
+              value={adminQuery}
+              onChange={(event) => setAdminQuery(event.target.value)}
+            />
+            <select
+              className="select-field"
+              value={adminFilter}
+              onChange={(event) => setAdminFilter(event.target.value)}
+            >
+              <option value="all">All Types</option>
+              <option value="vocabulary">Vocabulary</option>
+              <option value="grammar">Grammar</option>
+            </select>
+            <select
+              className="select-field"
+              value={adminSort}
+              onChange={(event) => setAdminSort(event.target.value)}
+            >
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+            </select>
+          </div>
+
+          {adminLoading ? (
+            <div className="card-panel panel-soft loading-card reveal">
+              <div className="text-lg font-semibold">Loading packs...</div>
+              <div className="text-muted text-sm mt-2">Fetching data from server</div>
+            </div>
+          ) : (
+            <div className="list-grid">
+              {filteredAdminPacks.length === 0 && (
+                <div className="card-panel panel-soft empty-panel">
+                  <div className="text-lg font-semibold">No packs yet</div>
+                  <div className="text-muted text-sm mt-2">Create packs via /api/create-pack-and-redirect.</div>
+                </div>
+              )}
+              {filteredAdminPacks.map(pack => (
+                <div key={pack.pack_id} className="list-card">
+                  <div>
+                    <div className="list-title">{pack.title || pack.pack_id}</div>
+                    <div className="meta-row">
+                      <span className="chip">{pack.type || 'typing'}</span>
+                      {pack.level && <span className="meta-muted">{pack.level}</span>}
+                      {pack.topic && <span className="meta-muted">{pack.topic}</span>}
+                      {pack.sub_topic && <span className="meta-muted">{pack.sub_topic}</span>}
+                      {pack.created_at && <span className="meta-muted">{formatDate(pack.created_at)}</span>}
+                    </div>
+                  </div>
+                  <div className="toolbar-actions">
+                    <button className="btn-secondary" onClick={() => handleSelectPack(pack.pack_id)}>Play</button>
+                    <button className="btn-warning" onClick={() => handleDeletePack(pack.pack_id)}>Delete</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
   }
 
-  // 로딩 화면
+  if (normalizedRoute === 'result') {
+    const resultData = packResult || readPackResult(packId);
+    if (!resultData) {
+      return (
+        <div className="app-shell">
+          <div className="card-panel panel-soft loading-card reveal">
+            <div className="text-lg font-semibold">Result not found</div>
+            <div className="text-muted text-sm mt-2">Return to My Learning to select a pack.</div>
+            <button className="btn-primary mt-6" onClick={() => navigate('/players/my-learning/')}>My Learning</button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="app-shell">
+        <div className="card-panel result-card reveal">
+          <div className="text-center mb-8">
+            <div className="text-5xl mb-3">{resultData.incorrectWords?.length ? '👏' : '🎉'}</div>
+            <h1 className="result-title">Session Complete</h1>
+            <p className="text-muted text-base">{resultData.title}</p>
+          </div>
+
+          <div className="space-y-4 mb-8">
+            <div className="stat-card">
+              <span>Completed Words</span>
+              <strong>{resultData.totalWords}</strong>
+            </div>
+            <div className="stat-card accent">
+              <span>Accuracy</span>
+              <strong>{resultData.accuracy}%</strong>
+            </div>
+            <div className="stat-card danger">
+              <span>Incorrect Words</span>
+              <strong>{resultData.incorrectWords?.length || 0}</strong>
+            </div>
+          </div>
+
+          {resultData.incorrectWords?.length > 0 && (
+            <div className="sub-panel mb-8">
+              <h3 className="text-sm font-semibold mb-3">Incorrect Words</h3>
+              <div className="flex flex-wrap gap-2">
+                {resultData.incorrectWords.map((word, i) => (
+                  <span key={i} className="tag-danger">
+                    {word}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <button className="w-full btn-primary" onClick={() => handleSelectPack(resultData.packId)}>
+              Retry Pack
+            </button>
+            <button className="w-full btn-secondary" onClick={() => navigate('/players/my-learning/')}>
+              Back to My Learning
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (normalizedRoute === 'my-learning') {
+    return (
+      <div className="app-shell">
+        <div className="page-shell">
+          <div className="page-header">
+            <div>
+              <h1 className="page-title"><span>My</span> Learning</h1>
+              <p className="page-subtitle">Track progress by group and pack.</p>
+            </div>
+            <div className="toolbar-actions">
+              <button className="btn-secondary" onClick={() => navigate('/players/admin/')}>Admin</button>
+            </div>
+          </div>
+
+          {groupedPacks.length === 0 ? (
+            <div className="card-panel panel-soft empty-panel">
+              <div className="text-lg font-semibold">No packs yet</div>
+              <div className="text-muted text-sm mt-2">Create a pack and it will appear here.</div>
+              <button className="btn-primary mt-6" onClick={() => navigate('/players/admin/')}>Go to Admin</button>
+            </div>
+          ) : selectedGroup ? (
+            <>
+              <div className="group-header">
+                <div>
+                  <h2 className="section-title">{selectedGroup.level} · {selectedGroup.topic}</h2>
+                  <p className="text-muted text-sm">Packs in this group</p>
+                </div>
+                <button className="btn-ghost" onClick={handleClearGroup}>Back to Groups</button>
+              </div>
+              <div className="list-grid">
+                {selectedGroup.packs.map(pack => {
+                  const result = readPackResult(pack.packId);
+                  return (
+                    <div key={pack.packId} className="list-card">
+                      <div>
+                        <div className="list-title">{pack.sub_topic || pack.title}</div>
+                        <div className="meta-row">
+                          <span className="chip">{pack.type || 'typing'}</span>
+                          {result?.accuracy && <span className="meta-muted">Accuracy {result.accuracy}%</span>}
+                          {pack.timestamp && <span className="meta-muted">Updated {formatDate(pack.timestamp)}</span>}
+                        </div>
+                      </div>
+                      <button className="btn-primary" onClick={() => handleSelectPack(pack.packId)}>Play</button>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <div className="list-grid">
+              {groupedPacks.map(group => (
+                <button
+                  key={group.key}
+                  className="list-card list-card-link"
+                  onClick={() => handleSelectGroup(group.key)}
+                >
+                  <div>
+                    <div className="list-title">{group.level} · {group.topic}</div>
+                    <div className="meta-row">
+                      <span className="chip">{group.type || 'typing'}</span>
+                      <span className="meta-muted">{group.packs.length} packs</span>
+                      <span className="meta-muted">Updated {formatDate(group.latest)}</span>
+                    </div>
+                  </div>
+                  <span className="pill">Open</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (!packId && !curriculum) {
+    return (
+      <div className="app-shell">
+        <div className="card-panel panel-soft loading-card reveal">
+          <div className="text-lg font-semibold">No pack selected</div>
+          <div className="text-muted text-sm mt-2">Choose a pack from My Learning.</div>
+          <button className="btn-primary mt-6" onClick={() => navigate('/players/my-learning/')}>Go to My Learning</button>
+        </div>
+      </div>
+    );
+  }
+
   if (words.length === 0) {
     return (
       <div className="app-shell">
@@ -1039,12 +1491,11 @@ function App() {
     );
   }
 
-  if (isCompleted) {
+  if (isCompleted && !packId) {
     const accuracy = stats.totalAttempts > 0
       ? ((stats.correctAttempts / stats.totalAttempts) * 100).toFixed(1)
       : 0;
 
-    // 다음 커리큘럼 추천
     const currentCurriculumObj = curriculums.find(c => c.id === curriculum);
     const currentIndex = curriculums.findIndex(c => c.id === curriculum);
     const nextCurriculum = currentIndex >= 0 && currentIndex < curriculums.length - 1
@@ -1059,12 +1510,7 @@ function App() {
           <div className="text-center mb-8">
             <div className="text-5xl mb-3">{allCorrect ? '🎉' : '👏'}</div>
             <h1 className="result-title">{allCorrect ? 'Perfect!' : 'Complete!'}</h1>
-            {packMeta?.title && (
-              <p className="text-muted text-base">
-                {packMeta.title}
-              </p>
-            )}
-            {!packMeta?.title && currentCurriculumObj && (
+            {currentCurriculumObj && (
               <p className="text-muted text-base">
                 {currentCurriculumObj.icon} {currentCurriculumObj.name} Curriculum
               </p>
@@ -1130,14 +1576,6 @@ function App() {
             >
               Start Over
             </button>
-            {!packId && (
-              <button
-                onClick={changeCurriculum}
-                className="w-full btn-ghost"
-              >
-                Select Curriculum
-              </button>
-            )}
           </div>
         </div>
       </div>
@@ -1159,7 +1597,7 @@ function App() {
         <div className="progress-shell reveal">
           <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
             <button
-              onClick={changeCurriculum}
+              onClick={() => navigate('/players/my-learning/')}
               className="btn-ghost flex items-center gap-2"
             >
               <span className="text-xl">←</span>

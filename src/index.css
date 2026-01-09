@@ -165,6 +165,125 @@ body::after {
   color: var(--text);
 }
 
+.page-shell {
+  width: min(1100px, 100%);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.input-field,
+.select-field {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 500;
+  min-width: 180px;
+  box-shadow: 0 10px 24px rgba(41, 63, 116, 0.08);
+}
+
+.input-field:focus,
+.select-field:focus {
+  outline: none;
+  border-color: rgba(47, 107, 255, 0.4);
+  box-shadow: 0 12px 28px rgba(47, 107, 255, 0.18);
+}
+
+.list-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.list-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 18px 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  box-shadow: var(--shadow-sm);
+  text-align: left;
+}
+
+.list-card-link {
+  cursor: pointer;
+  transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+}
+
+.list-card-link:hover {
+  transform: translateY(-4px);
+  border-color: rgba(47, 107, 255, 0.35);
+  box-shadow: 0 20px 50px rgba(41, 63, 116, 0.18);
+}
+
+.list-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.meta-muted {
+  color: var(--muted);
+}
+
+.chip {
+  background: var(--accent-soft);
+  color: #2354c7;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.empty-panel {
+  text-align: center;
+}
+
+.group-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .curriculum-card {
   position: relative;
   background: linear-gradient(135deg, #f9fbff 0%, #ffffff 50%, #fef4ee 100%);
