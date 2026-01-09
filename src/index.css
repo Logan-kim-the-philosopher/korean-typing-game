@@ -111,6 +111,7 @@ body::after {
 .app-shell.mobile-mode {
   align-items: flex-start;
   justify-content: flex-start;
+  padding-top: calc(18px + env(safe-area-inset-top));
   padding-bottom: calc(140px + env(safe-area-inset-bottom));
 }
 
