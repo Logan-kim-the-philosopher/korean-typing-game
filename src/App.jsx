@@ -882,13 +882,14 @@ function App() {
             {currentWord.korean}
           </div>
 
-          {showError && (
-            <div className="error-text">✗ Incorrect</div>
-          )}
-
-          <div className="word-translation">
-            {currentWord.english}
-            <span className="category">[{currentWord.category}]</span>
+          <div className="translation-row">
+            <div className="word-translation">
+              {currentWord.english}
+              <span className="category">[{currentWord.category}]</span>
+            </div>
+            <div className={`error-inline ${showError ? 'show' : ''}`}>
+              ✗ Incorrect
+            </div>
           </div>
 
           <div className="jamo-row hint">

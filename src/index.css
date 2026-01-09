@@ -275,11 +275,27 @@ body::after {
   margin-left: 8px;
 }
 
-.error-text {
+.translation-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.error-inline {
+  min-width: 96px;
   color: var(--danger);
   font-weight: 700;
-  font-size: 18px;
-  margin-bottom: 12px;
+  font-size: 16px;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.error-inline.show {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .keyboard-wrap {
@@ -288,16 +304,19 @@ body::after {
 }
 
 .soft-key {
+  position: relative;
   min-width: 58px;
   padding: 14px 18px;
   border-radius: 16px;
-  border: 1px solid #d6deef;
-  background: linear-gradient(180deg, #ffffff 0%, #f2f5ff 100%);
+  border: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.75) 0%, rgba(236, 242, 255, 0.65) 100%);
   color: #2f3a52;
   box-shadow:
-    0 14px 28px rgba(42, 59, 104, 0.12),
-    0 6px 14px rgba(42, 59, 104, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    0 16px 28px rgba(44, 62, 110, 0.14),
+    0 6px 16px rgba(44, 62, 110, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -6px 14px rgba(210, 223, 255, 0.35);
+  backdrop-filter: blur(14px) saturate(140%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -308,22 +327,34 @@ body::after {
 
 .soft-key:hover {
   transform: translateY(-3px);
-  border-color: rgba(47, 107, 255, 0.35);
   box-shadow:
     0 18px 34px rgba(42, 59, 104, 0.16),
     0 8px 16px rgba(42, 59, 104, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 
+.soft-key::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: 15px;
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0) 45%);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
 .soft-key.active {
   background: linear-gradient(180deg, #3b7bff 0%, #2f62f0 100%);
   color: #ffffff;
-  border-color: rgba(33, 82, 210, 0.65);
   box-shadow:
     0 10px 20px rgba(41, 90, 200, 0.28),
     inset 0 2px 6px rgba(9, 30, 86, 0.25),
     inset 0 -2px 0 rgba(255, 255, 255, 0.18);
   transform: translateY(-1px) scale(1.02);
+}
+
+.soft-key.active::before {
+  opacity: 0.3;
 }
 
 .key-sub {
