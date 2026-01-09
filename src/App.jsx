@@ -295,7 +295,7 @@ function Keyboard({ currentKey }) {
 
   const getKeyClass = (key) => {
     if (!key || !currentKey || typeof currentKey !== 'string') {
-      return `px-6 py-4 rounded-lg border-2 font-mono transition-all flex flex-col items-center justify-center min-w-[60px] bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700`;
+      return 'soft-key';
     }
 
     const isActive = (
@@ -303,28 +303,16 @@ function Keyboard({ currentKey }) {
       currentKey.toLowerCase() === key.eng.toLowerCase()
     );
 
-    return `px-6 py-4 rounded-lg border-2 font-mono transition-all flex flex-col items-center justify-center min-w-[60px] ${
-      isActive
-        ? 'bg-blue-600 border-blue-400 text-white scale-110 shadow-lg'
-        : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
-    }`;
+    return `soft-key ${isActive ? 'active' : ''}`;
   };
 
   const getShiftKeyClass = () => {
-    return `px-6 py-4 rounded-lg border-2 font-mono transition-all min-w-[80px] flex items-center justify-center ${
-      needsShift
-        ? 'bg-blue-600 border-blue-400 text-white scale-110 shadow-lg'
-        : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
-    }`;
+    return `soft-key soft-key-wide ${needsShift ? 'active' : ''}`;
   };
 
   const getSpacebarClass = () => {
     const isActive = currentKey === ' ';
-    return `px-6 py-4 rounded-lg border-2 font-mono transition-all flex items-center justify-center ${
-      isActive
-        ? 'bg-blue-600 border-blue-400 text-white scale-110 shadow-lg'
-        : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
-    }`;
+    return `soft-key soft-key-space ${isActive ? 'active' : ''}`;
   };
 
   return (
@@ -334,7 +322,7 @@ function Keyboard({ currentKey }) {
           {row.map((key) => (
             <div key={key.eng} className={getKeyClass(key)}>
               <div className="text-lg font-bold">{key.kor}</div>
-              <div className="text-xs text-gray-400">{key.eng.toUpperCase()}</div>
+              <div className="key-sub">{key.eng.toUpperCase()}</div>
             </div>
           ))}
         </div>
@@ -347,13 +335,13 @@ function Keyboard({ currentKey }) {
         {keyLayout[2].map((key) => (
           <div key={key.eng} className={getKeyClass(key)}>
             <div className="text-lg font-bold">{key.kor}</div>
-            <div className="text-xs text-gray-400">{key.eng.toUpperCase()}</div>
+            <div className="key-sub">{key.eng.toUpperCase()}</div>
           </div>
         ))}
       </div>
       {/* 네 번째 줄: 스페이스바 */}
       <div className="flex gap-3 w-full justify-center">
-        <div className={getSpacebarClass()} style={{ minWidth: '400px' }}>
+        <div className={getSpacebarClass()}>
           <span className="text-sm">Spacebar</span>
         </div>
       </div>
@@ -379,25 +367,30 @@ function CurriculumSelection({ onSelect, student, curriculums, loading }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center">
-        <div className="text-white text-2xl">Loading curriculums...</div>
+      <div className="app-shell">
+        <div className="card-panel panel-soft loading-card reveal">
+          <div className="text-lg font-semibold">Loading curriculums...</div>
+          <div className="text-muted text-sm mt-2">Getting your practice ready</div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center p-8">
+    <div className="app-shell">
       <div className="w-full max-w-6xl">
-        <div className="text-center mb-16">
-          <h1 className="text-7xl font-extrabold text-white mb-3 tracking-tight">
-            Korean Typing Practice
+        <div className="text-center mb-12 reveal">
+          <h1 className="page-title">
+            <span>Korean</span> Typing Practice
           </h1>
-          {student && (
-            <p className="text-gray-400 text-2xl font-light">{student}, welcome!</p>
+          {student ? (
+            <p className="page-subtitle">{student}, welcome back.</p>
+          ) : (
+            <p className="page-subtitle">Warm up your fingers with focused drills.</p>
           )}
         </div>
 
-        <h2 className="text-3xl font-semibold text-white text-center mb-12 tracking-wide">
+        <h2 className="section-title text-center mb-10 reveal">
           Select a Curriculum
         </h2>
 
@@ -406,44 +399,29 @@ function CurriculumSelection({ onSelect, student, curriculums, loading }) {
           curriculums.length === 2 ? 'grid-cols-1 md:grid-cols-2 max-w-4xl mx-auto' :
           'grid-cols-1 md:grid-cols-3'
         }`}>
-          {curriculums.map((curriculum) => {
+          {curriculums.map((curriculum, i) => {
             const completed = isCompleted(curriculum.id);
             return (
               <button
                 key={curriculum.id}
                 onClick={() => onSelect(curriculum.id)}
-                className={`group bg-gradient-to-br from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 border rounded-2xl p-10 transition-all duration-300 transform hover:scale-105 relative overflow-hidden ${
-                  completed
-                    ? 'border-yellow-500 shadow-2xl shadow-yellow-500/40 hover:shadow-yellow-500/60 animate-pulse-slow'
-                    : 'border-gray-700 hover:border-blue-500 hover:shadow-2xl hover:shadow-blue-500/20'
-                }`}
+                className={`curriculum-card reveal ${completed ? 'is-complete' : ''}`}
+                style={{ animationDelay: `${i * 90}ms` }}
               >
-                <div className={`absolute inset-0 bg-gradient-to-br transition-all duration-300 ${
-                  completed
-                    ? 'from-yellow-500/10 to-yellow-500/0'
-                    : 'from-blue-500/0 to-blue-500/0 group-hover:from-blue-500/5 group-hover:to-transparent'
-                }`}></div>
+                <div className="card-sheen"></div>
 
                 {/* 완료 표시 */}
                 {completed && (
-                  <div className="absolute top-4 right-4 bg-yellow-500 text-black px-4 py-2 rounded-full font-bold text-sm flex items-center gap-2 shadow-lg">
+                  <div className="badge-complete">
                     <span>✓</span>
                     <span>Complete</span>
                   </div>
                 )}
 
-                <div className="relative">
-                  <div className={`text-7xl mb-6 text-center transform group-hover:scale-110 transition-transform duration-300 ${
-                    completed ? 'drop-shadow-[0_0_15px_rgba(234,179,8,0.5)]' : ''
-                  }`}>{curriculum.icon}</div>
-                  <h3 className={`text-3xl font-bold text-center mb-3 tracking-tight ${
-                    completed ? 'text-yellow-400' : 'text-white'
-                  }`}>
-                    {curriculum.name}
-                  </h3>
-                  <p className="text-gray-400 text-center text-base leading-relaxed">
-                    {curriculum.description}
-                  </p>
+                <div className="relative z-10">
+                  <div className="curriculum-icon">{curriculum.icon}</div>
+                  <h3 className="curriculum-title">{curriculum.name}</h3>
+                  <p className="curriculum-desc">{curriculum.description}</p>
                 </div>
               </button>
             );
@@ -746,8 +724,11 @@ function App() {
   // 로딩 화면
   if (words.length === 0) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
+      <div className="app-shell">
+        <div className="card-panel panel-soft loading-card reveal">
+          <div className="text-lg font-semibold">Loading...</div>
+          <div className="text-muted text-sm mt-2">Fetching your words</div>
+        </div>
       </div>
     );
   }
@@ -767,52 +748,42 @@ function App() {
     const allCorrect = mistakeWords.length === 0;
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center p-8">
-        <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-3xl p-12 max-w-lg w-full border border-gray-700 shadow-2xl">
+      <div className="app-shell">
+        <div className="card-panel result-card reveal">
           <div className="text-center mb-8">
-            <div className="text-6xl mb-4">{allCorrect ? '🎉' : '👏'}</div>
-            <h1 className={`text-5xl font-extrabold mb-2 tracking-tight ${
-              allCorrect ? 'text-yellow-400' : 'text-white'
-            }`}>
-              {allCorrect ? 'Perfect!' : 'Complete!'}
-            </h1>
+            <div className="text-5xl mb-3">{allCorrect ? '🎉' : '👏'}</div>
+            <h1 className="result-title">{allCorrect ? 'Perfect!' : 'Complete!'}</h1>
             {currentCurriculumObj && (
-              <p className="text-gray-400 text-lg">
+              <p className="text-muted text-base">
                 {currentCurriculumObj.icon} {currentCurriculumObj.name} Curriculum
               </p>
             )}
             {student && (
-              <p className="text-gray-500 text-sm font-light">{student}</p>
+              <p className="text-muted text-sm mt-1">{student}</p>
             )}
           </div>
 
-          <div className="space-y-5 mb-8">
-            <div className="bg-gray-900/50 rounded-2xl p-5 backdrop-blur-sm border border-gray-700">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-400 text-lg">Completed Words</span>
-                <span className="font-bold text-white text-2xl">{words.length}</span>
-              </div>
+          <div className="space-y-4 mb-8">
+            <div className="stat-card">
+              <span>Completed Words</span>
+              <strong>{words.length}</strong>
             </div>
-            <div className="bg-gradient-to-r from-blue-500/10 to-blue-600/10 rounded-2xl p-5 backdrop-blur-sm border border-blue-500/30">
-              <div className="flex justify-between items-center">
-                <span className="text-blue-300 text-lg">Accuracy</span>
-                <span className="font-bold text-blue-400 text-3xl">{accuracy}%</span>
-              </div>
+            <div className="stat-card accent">
+              <span>Accuracy</span>
+              <strong>{accuracy}%</strong>
             </div>
-            <div className="bg-gray-900/50 rounded-2xl p-5 backdrop-blur-sm border border-gray-700">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-400 text-lg">Incorrect Words</span>
-                <span className="font-bold text-red-400 text-2xl">{mistakeWords.length}</span>
-              </div>
+            <div className="stat-card danger">
+              <span>Incorrect Words</span>
+              <strong>{mistakeWords.length}</strong>
             </div>
           </div>
 
           {mistakeWords.length > 0 && (
-            <div className="mb-8 bg-gray-900/30 rounded-2xl p-5 border border-gray-700">
-              <h3 className="text-white font-semibold mb-3 text-lg">Incorrect Words</h3>
+            <div className="sub-panel mb-8">
+              <h3 className="text-sm font-semibold mb-3">Incorrect Words</h3>
               <div className="flex flex-wrap gap-2">
                 {mistakeWords.map((word, i) => (
-                  <span key={i} className="bg-red-500/20 text-red-300 px-4 py-2 rounded-lg border border-red-500/30 font-medium">
+                  <span key={i} className="tag-danger">
                     {word}
                   </span>
                 ))}
@@ -824,7 +795,7 @@ function App() {
             {mistakeWords.length > 0 && (
               <button
                 onClick={retryMistakes}
-                className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-bold py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-yellow-500/50"
+                className="w-full btn-warning"
               >
                 Retry Incorrect Words
               </button>
@@ -836,7 +807,7 @@ function App() {
                   setIsCompleted(false);
                   setCurrentWordIndex(0);
                 }}
-                className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-green-500/50 flex items-center justify-center gap-2"
+                className="w-full btn-primary flex items-center justify-center gap-2"
               >
                 <span>Next: {nextCurriculum.icon} {nextCurriculum.name}</span>
                 <span>→</span>
@@ -844,13 +815,13 @@ function App() {
             )}
             <button
               onClick={restart}
-              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-blue-500/50"
+              className="w-full btn-secondary"
             >
               Start Over
             </button>
             <button
               onClick={changeCurriculum}
-              className="w-full bg-gray-700 hover:bg-gray-600 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-300 border border-gray-600"
+              className="w-full btn-ghost"
             >
               Select Curriculum
             </button>
@@ -869,56 +840,54 @@ function App() {
   const currentCurriculum = curriculums.find(c => c.id === curriculum);
 
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-8">
-      <div className="w-full max-w-4xl">
+    <div className="app-shell">
+      <div className="w-full max-w-5xl space-y-8">
         {/* 헤더 */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-between mb-2">
-            {/* 뒤로가기 버튼 */}
+        <div className="card-panel reveal">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
             <button
               onClick={changeCurriculum}
-              className="flex items-center gap-2 text-gray-500 hover:text-gray-300 transition"
+              className="btn-ghost flex items-center gap-2"
             >
               <span className="text-xl">←</span>
               <span className="text-sm">Back</span>
             </button>
 
-            {/* 중앙 정보 */}
-            <div className="text-gray-400 text-sm">
+            <div className="text-sm text-muted">
               {currentCurriculum && (
                 <span className="mr-2">
                   {currentCurriculum.icon} {currentCurriculum.name}
                 </span>
               )}
-              {student && `| ${student} `}
-              | Word {currentWordIndex + 1} / {words.length}
+              {student && <span className="mr-2">| {student}</span>}
             </div>
 
-            {/* 오른쪽 여백 (균형을 위해) */}
-            <div className="w-24"></div>
+            <div className="pill">
+              Word {currentWordIndex + 1} / {words.length}
+            </div>
           </div>
 
-          {/* 진행바 */}
-          <div className="w-full bg-gray-800 h-3 rounded-full overflow-hidden">
+          <div className="progress-track">
             <div
-              className="bg-blue-600 h-full transition-all duration-300 ease-out"
+              className="progress-bar"
               style={{ width: `${progress}%` }}
             />
           </div>
         </div>
 
         {/* 자모 분해 표시 */}
-        <div className="text-center mb-8">
-          <div className="flex justify-center gap-4 mb-6">
+        <div className="card-panel panel-soft typing-card reveal">
+          <div className="pill mb-4">Korean</div>
+          <div className="jamo-row">
             {currentJamos.map((jamo, i) => (
               <span
                 key={i}
-                className={`text-4xl font-bold transition-all ${
+                className={`jamo-chip ${
                   i === currentJamoIndex
-                    ? 'text-blue-500 scale-125'
+                    ? 'is-current'
                     : i < currentJamoIndex
-                    ? 'text-green-500'
-                    : 'text-gray-600'
+                    ? 'is-done'
+                    : ''
                 }`}
               >
                 {jamo}
@@ -926,34 +895,25 @@ function App() {
             ))}
           </div>
 
-          {/* 완성형 단어 */}
-          <div className={`text-6xl font-bold mb-4 transition-all ${
-            showError ? 'text-red-500 scale-110' : 'text-white'
-          }`}>
+          <div className={`word-display ${showError ? 'is-error' : ''}`}>
             {currentWord.korean}
           </div>
 
-          {/* 틀렸을 때 표시 */}
           {showError && (
-            <div className="text-red-500 text-2xl font-bold mb-2 animate-pulse">
-              ✗ Incorrect
-            </div>
+            <div className="error-text">✗ Incorrect</div>
           )}
 
-          {/* 영어 뜻과 품사 */}
-          <div className="text-2xl text-gray-400">
+          <div className="word-translation">
             {currentWord.english}
-            <span className="text-gray-600 ml-2">[{currentWord.category}]</span>
+            <span className="category">[{currentWord.category}]</span>
           </div>
         </div>
 
-        {/* 키보드 */}
-        <div className="mt-12">
+        <div className="card-panel keyboard-panel reveal">
           <Keyboard currentKey={currentKey} />
         </div>
 
-        {/* 통계 */}
-        <div className="mt-8 text-center text-gray-500 text-sm">
+        <div className="stats-footer">
           Accuracy: {stats.totalAttempts > 0
             ? ((stats.correctAttempts / stats.totalAttempts) * 100).toFixed(1)
             : 0}%
