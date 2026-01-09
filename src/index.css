@@ -462,10 +462,6 @@ body::after {
     gap: 16px;
   }
 
-  .progress-track {
-    display: none;
-  }
-
   .progress-shell {
     padding-bottom: 0;
     margin-bottom: -8px;
