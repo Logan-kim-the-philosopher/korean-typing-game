@@ -9,7 +9,9 @@ from pathlib import Path
 from flask import Flask, jsonify, request, send_from_directory
 
 BASE_DIR = Path(__file__).resolve().parent
-DEFAULT_DIST_DIR = (BASE_DIR / ".." / "dist").resolve()
+DEFAULT_DIST_DIR = (BASE_DIR / "dist").resolve()
+if not DEFAULT_DIST_DIR.exists():
+    DEFAULT_DIST_DIR = (BASE_DIR / ".." / "dist").resolve()
 DIST_DIR = Path(os.getenv("DIST_DIR", DEFAULT_DIST_DIR)).resolve()
 DEFAULT_PACKS_DIR = (BASE_DIR / ".." / "packs").resolve()
 PACKS_DIR = Path(os.getenv("PACKS_DIR", DEFAULT_PACKS_DIR)).resolve()
