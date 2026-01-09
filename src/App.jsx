@@ -774,8 +774,8 @@ function App() {
   }, [currentJamos, currentJamoIndex, words, isCompleted, useMobileKeyboard, completeWord, saveToLocalStorage]);
 
   const handleMobileInput = useCallback((event) => {
-    const value = event.target.value;
-    const typedJamos = disassembleHangul(value);
+    const rawValue = event.target.value;
+    const typedJamos = disassembleHangul(rawValue);
     const maxLen = Math.min(typedJamos.length, currentJamos.length);
     let prefixLen = 0;
 
@@ -784,12 +784,27 @@ function App() {
       prefixLen += 1;
     }
 
+    const trimToPrefix = (value, keepJamos) => {
+      let count = 0;
+      let endIndex = 0;
+      for (let i = 0; i < value.length; i += 1) {
+        const jamos = disassembleHangul(value[i]);
+        if (count + jamos.length > keepJamos) break;
+        count += jamos.length;
+        endIndex = i + 1;
+      }
+      return value.slice(0, endIndex);
+    };
+
+    const sanitizedValue = trimToPrefix(rawValue, prefixLen);
+    const sanitizedJamos = disassembleHangul(sanitizedValue);
+
     const prevTyped = mobileTypedCountRef.current;
     const prevMatched = mobileJamoCountRef.current;
+    const deltaTyped = Math.max(0, typedJamos.length - prevTyped);
+    const deltaCorrect = Math.max(0, sanitizedJamos.length - prevMatched);
 
-    if (typedJamos.length > prevTyped) {
-      const deltaTyped = typedJamos.length - prevTyped;
-      const deltaCorrect = Math.max(0, prefixLen - prevMatched);
+    if (deltaTyped > 0) {
       setStats(prev => ({
         totalAttempts: prev.totalAttempts + deltaTyped,
         correctAttempts: prev.correctAttempts + deltaCorrect
@@ -802,11 +817,11 @@ function App() {
     }
 
     mobileTypedCountRef.current = typedJamos.length;
-    mobileJamoCountRef.current = prefixLen;
-    setMobileInput(value);
-    setCurrentJamoIndex(prefixLen);
+    mobileJamoCountRef.current = sanitizedJamos.length;
+    setMobileInput(sanitizedValue);
+    setCurrentJamoIndex(sanitizedJamos.length);
 
-    if (prefixLen === currentJamos.length && typedJamos.length === currentJamos.length) {
+    if (sanitizedJamos.length === currentJamos.length) {
       setMobileInput('');
       mobileJamoCountRef.current = 0;
       mobileTypedCountRef.current = 0;
