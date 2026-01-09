@@ -275,25 +275,37 @@ body::after {
   margin-left: 8px;
 }
 
-.translation-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  flex-wrap: wrap;
+.translation-swap {
+  display: grid;
+  place-items: center;
+  min-height: 26px;
 }
 
-.error-inline {
-  min-width: 96px;
+.translation-swap > .word-translation,
+.translation-swap > .error-inline {
+  grid-area: 1 / 1;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.translation-swap > .word-translation {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.translation-swap > .error-inline {
   color: var(--danger);
   font-weight: 700;
   font-size: 16px;
   opacity: 0;
   transform: translateY(4px);
-  transition: opacity 120ms ease, transform 120ms ease;
 }
 
-.error-inline.show {
+.translation-swap.show-error > .word-translation {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.translation-swap.show-error > .error-inline {
   opacity: 1;
   transform: translateY(0);
 }

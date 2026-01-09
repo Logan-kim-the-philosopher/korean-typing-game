@@ -322,7 +322,7 @@ function Keyboard({ currentKey }) {
           {row.map((key) => (
             <div key={key.eng} className={getKeyClass(key)}>
               <div className="text-lg font-bold">{key.kor}</div>
-              <div className="key-sub">/{key.eng.toUpperCase()}</div>
+              <div className="key-sub">{key.eng.toUpperCase()}</div>
             </div>
           ))}
         </div>
@@ -335,7 +335,7 @@ function Keyboard({ currentKey }) {
         {keyLayout[2].map((key) => (
           <div key={key.eng} className={getKeyClass(key)}>
             <div className="text-lg font-bold">{key.kor}</div>
-            <div className="key-sub">/{key.eng.toUpperCase()}</div>
+            <div className="key-sub">{key.eng.toUpperCase()}</div>
           </div>
         ))}
       </div>
@@ -882,14 +882,12 @@ function App() {
             {currentWord.korean}
           </div>
 
-          <div className="translation-row">
+          <div className={`translation-swap ${showError ? 'show-error' : ''}`}>
             <div className="word-translation">
               {currentWord.english}
               <span className="category">[{currentWord.category}]</span>
             </div>
-            <div className={`error-inline ${showError ? 'show' : ''}`}>
-              ✗ Incorrect
-            </div>
+            <div className="error-inline">✗ Incorrect</div>
           </div>
 
           <div className="jamo-row hint">
