@@ -549,6 +549,11 @@ function App() {
     }
   }, [useMobileKeyboard, currentWordIndex]);
 
+  useEffect(() => {
+    document.body.classList.toggle('mobile-locked', useMobileKeyboard);
+    return () => document.body.classList.remove('mobile-locked');
+  }, [useMobileKeyboard]);
+
   // 커리큘럼이 변경되면 해당 커리큘럼의 데이터 로드
   useEffect(() => {
     if (curriculum) {
@@ -969,7 +974,7 @@ function App() {
 
   return (
     <div className={`app-shell ${useMobileKeyboard ? 'mobile-mode' : ''}`}>
-      <div className="w-full max-w-5xl space-y-8 mobile-stack">
+      <div className={`w-full max-w-5xl space-y-8 mobile-stack ${useMobileKeyboard ? 'mobile-content' : ''}`}>
         {/* 헤더 */}
         <div className="progress-shell reveal">
           <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
