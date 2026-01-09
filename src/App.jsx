@@ -498,6 +498,7 @@ function App() {
   const [curriculumsLoading, setCurriculumsLoading] = useState(true);
   const [useMobileKeyboard, setUseMobileKeyboard] = useState(false);
   const [mobileInput, setMobileInput] = useState('');
+  const [showKoreanModal, setShowKoreanModal] = useState(false);
   const mobileInputRef = useRef(null);
   const mobileJamoCountRef = useRef(0);
 
@@ -533,6 +534,14 @@ function App() {
     window.addEventListener('resize', updateKeyboardLayout);
     return () => window.removeEventListener('resize', updateKeyboardLayout);
   }, []);
+
+  useEffect(() => {
+    if (!useMobileKeyboard) return;
+    const seen = localStorage.getItem('korean-typing-kb-hint');
+    if (!seen) {
+      setShowKoreanModal(true);
+    }
+  }, [useMobileKeyboard]);
 
   useEffect(() => {
     if (useMobileKeyboard && mobileInputRef.current) {
@@ -761,6 +770,11 @@ function App() {
     }
   }, [currentJamos, completeWord]);
 
+  const dismissKoreanModal = () => {
+    localStorage.setItem('korean-typing-kb-hint', '1');
+    setShowKoreanModal(false);
+  };
+
   useEffect(() => {
     if (useMobileKeyboard) return;
     window.addEventListener('keydown', handleKeyPress);
@@ -954,8 +968,8 @@ function App() {
   const currentCurriculum = curriculums.find(c => c.id === curriculum);
 
   return (
-    <div className="app-shell">
-      <div className="w-full max-w-5xl space-y-8">
+    <div className={`app-shell ${useMobileKeyboard ? 'mobile-mode' : ''}`}>
+      <div className="w-full max-w-5xl space-y-8 mobile-stack">
         {/* 헤더 */}
         <div className="progress-shell reveal">
           <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
@@ -1051,6 +1065,22 @@ function App() {
           Keystrokes: {stats.totalAttempts}
         </div>
       </div>
+
+      {showKoreanModal && (
+        <div className="modal-backdrop">
+          <div className="modal-card">
+            <h3>Enable Korean Keyboard</h3>
+            <p>To type Korean on mobile, add a Korean keyboard in your phone settings.</p>
+            <ul>
+              <li>iOS: Settings → General → Keyboard → Keyboards → Add New Keyboard → Korean</li>
+              <li>Android: Settings → System → Languages & input → Virtual keyboard → Add Korean</li>
+            </ul>
+            <button className="btn-primary" onClick={dismissKoreanModal}>
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

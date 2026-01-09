@@ -107,6 +107,16 @@ body::after {
   padding: clamp(24px, 4vw, 48px);
 }
 
+.app-shell.mobile-mode {
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding-bottom: calc(140px + env(safe-area-inset-bottom));
+}
+
+.mobile-stack {
+  gap: 32px;
+}
+
 .card-panel {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -367,6 +377,10 @@ body::after {
   flex-direction: column;
   align-items: center;
   gap: 10px;
+  position: sticky;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 20;
+  padding: 12px 0;
 }
 
 .mobile-input {
@@ -392,6 +406,58 @@ body::after {
 .mobile-input-hint {
   color: #8a94aa;
   font-size: 12px;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 50;
+}
+
+.modal-card {
+  width: min(420px, 90vw);
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 24px 60px rgba(24, 46, 96, 0.2);
+  text-align: left;
+  color: var(--text);
+}
+
+.modal-card h3 {
+  margin: 0 0 10px;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.modal-card p {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.modal-card ul {
+  margin: 0 0 16px;
+  padding-left: 18px;
+  color: #6b778f;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.modal-card li + li {
+  margin-top: 6px;
+}
+
+@media (max-width: 840px) {
+  .mobile-stack {
+    gap: 24px;
+  }
 }
 
 .keyboard-grid {
