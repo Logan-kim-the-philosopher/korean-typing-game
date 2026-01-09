@@ -536,6 +536,23 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!useMobileKeyboard || !window.visualViewport) return;
+    const viewport = window.visualViewport;
+    const updateViewport = () => {
+      const keyboardOffset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+      document.documentElement.style.setProperty('--keyboard-offset', `${keyboardOffset}px`);
+    };
+    updateViewport();
+    viewport.addEventListener('resize', updateViewport);
+    viewport.addEventListener('scroll', updateViewport);
+    return () => {
+      viewport.removeEventListener('resize', updateViewport);
+      viewport.removeEventListener('scroll', updateViewport);
+      document.documentElement.style.removeProperty('--keyboard-offset');
+    };
+  }, [useMobileKeyboard]);
+
+  useEffect(() => {
     if (!useMobileKeyboard) return;
     const seen = localStorage.getItem('korean-typing-kb-hint');
     if (!seen) {
@@ -770,6 +787,16 @@ function App() {
       completeWord();
     }
   }, [currentJamos, completeWord]);
+
+  const handleMobileFocus = useCallback(() => {
+    if (!useMobileKeyboard) return;
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    });
+    setTimeout(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    }, 150);
+  }, [useMobileKeyboard]);
 
   const dismissKoreanModal = () => {
     localStorage.setItem('korean-typing-kb-hint', '1');
@@ -1044,6 +1071,7 @@ function App() {
               className="mobile-input"
               value={mobileInput}
               onChange={handleMobileInput}
+              onFocus={handleMobileFocus}
               placeholder="Tap to type in Korean"
               autoComplete="off"
               autoCorrect="off"
