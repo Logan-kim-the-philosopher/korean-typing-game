@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { assemble } from 'es-hangul';
 
 // Airtable 설정 (환경 변수 사용)
 const USE_MOCK_DATA = !import.meta.env.VITE_AIRTABLE_TOKEN; // 토큰이 없으면 Mock 데이터 사용
@@ -784,25 +785,13 @@ function App() {
       prefixLen += 1;
     }
 
-    const trimToPrefix = (value, keepJamos) => {
-      let count = 0;
-      let endIndex = 0;
-      for (let i = 0; i < value.length; i += 1) {
-        const jamos = disassembleHangul(value[i]);
-        if (count + jamos.length > keepJamos) break;
-        count += jamos.length;
-        endIndex = i + 1;
-      }
-      return value.slice(0, endIndex);
-    };
-
-    const sanitizedValue = trimToPrefix(rawValue, prefixLen);
-    const sanitizedJamos = disassembleHangul(sanitizedValue);
+    const sanitizedJamos = currentJamos.slice(0, prefixLen);
+    const sanitizedValue = assemble(sanitizedJamos);
 
     const prevTyped = mobileTypedCountRef.current;
     const prevMatched = mobileJamoCountRef.current;
     const deltaTyped = Math.max(0, typedJamos.length - prevTyped);
-    const deltaCorrect = Math.max(0, sanitizedJamos.length - prevMatched);
+    const deltaCorrect = Math.max(0, prefixLen - prevMatched);
 
     if (deltaTyped > 0) {
       setStats(prev => ({
@@ -817,11 +806,11 @@ function App() {
     }
 
     mobileTypedCountRef.current = typedJamos.length;
-    mobileJamoCountRef.current = sanitizedJamos.length;
+    mobileJamoCountRef.current = prefixLen;
     setMobileInput(sanitizedValue);
-    setCurrentJamoIndex(sanitizedJamos.length);
+    setCurrentJamoIndex(prefixLen);
 
-    if (sanitizedJamos.length === currentJamos.length) {
+    if (prefixLen === currentJamos.length) {
       setMobileInput('');
       mobileJamoCountRef.current = 0;
       mobileTypedCountRef.current = 0;
