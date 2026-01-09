@@ -126,3 +126,18 @@ docker stats typing-server
 | `PUBLIC_BASE_URL` | 응답 링크 도메인 | 없음 |
 | `PACKS_DIR` | 팩 저장 경로 | `/app/packs` |
 
+---
+
+## 🔁 업데이트 스크립트
+
+로컬에서 빌드/전송/재배포를 자동으로 처리하는 스크립트:
+
+```
+ops/update-typing-server.sh user@host
+```
+
+옵션 환경 변수:
+```
+KEY_PATH=~/.ssh/oci_key.pem
+PUBLIC_BASE_URL=https://typing.youwillspeakkorean.com
+```
