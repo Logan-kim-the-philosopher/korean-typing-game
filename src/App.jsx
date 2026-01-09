@@ -316,31 +316,31 @@ function Keyboard({ currentKey }) {
   };
 
   return (
-    <div className="flex flex-col gap-3 items-center">
+    <div className="keyboard-grid">
       {keyLayout.slice(0, 2).map((row, i) => (
-        <div key={i} className="flex gap-3">
+        <div key={i} className="keyboard-row">
           {row.map((key) => (
             <div key={key.eng} className={getKeyClass(key)}>
               <div className="text-lg font-bold">{key.kor}</div>
-              <div className="key-sub">{key.eng.toUpperCase()}</div>
+              <div className="key-sub">/{key.eng.toUpperCase()}</div>
             </div>
           ))}
         </div>
       ))}
       {/* 세 번째 줄: Shift 키와 함께 */}
-      <div className="flex gap-3">
+      <div className="keyboard-row">
         <div className={getShiftKeyClass()}>
           <span className="text-sm">Shift</span>
         </div>
         {keyLayout[2].map((key) => (
           <div key={key.eng} className={getKeyClass(key)}>
             <div className="text-lg font-bold">{key.kor}</div>
-            <div className="key-sub">{key.eng.toUpperCase()}</div>
+            <div className="key-sub">/{key.eng.toUpperCase()}</div>
           </div>
         ))}
       </div>
       {/* 네 번째 줄: 스페이스바 */}
-      <div className="flex gap-3 w-full justify-center">
+      <div className="keyboard-row keyboard-row-space">
         <div className={getSpacebarClass()}>
           <span className="text-sm">Spacebar</span>
         </div>

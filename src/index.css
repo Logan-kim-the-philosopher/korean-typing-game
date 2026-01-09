@@ -299,23 +299,41 @@ body::after {
 }
 
 .keyboard-wrap {
+  --key-scale: 1.2;
   padding: clamp(6px, 2.2vw, 16px);
   overflow-x: auto;
 }
 
+.keyboard-grid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(12px * var(--key-scale));
+}
+
+.keyboard-row {
+  display: flex;
+  gap: calc(12px * var(--key-scale));
+}
+
+.keyboard-row-space {
+  width: 100%;
+  justify-content: center;
+}
+
 .soft-key {
   position: relative;
-  min-width: 58px;
-  padding: 14px 18px;
-  border-radius: 16px;
+  min-width: calc(58px * var(--key-scale));
+  padding: calc(14px * var(--key-scale)) calc(18px * var(--key-scale));
+  border-radius: calc(16px * var(--key-scale));
   border: none;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.75) 0%, rgba(236, 242, 255, 0.65) 100%);
   color: #2f3a52;
   box-shadow:
-    0 16px 28px rgba(44, 62, 110, 0.14),
-    0 6px 16px rgba(44, 62, 110, 0.08),
+    0 10px 22px rgba(44, 62, 110, 0.1),
+    0 4px 12px rgba(44, 62, 110, 0.06),
     inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    inset 0 -6px 14px rgba(210, 223, 255, 0.35);
+    inset 0 -4px 12px rgba(210, 223, 255, 0.28);
   backdrop-filter: blur(14px) saturate(140%);
   display: flex;
   align-items: center;
@@ -328,8 +346,8 @@ body::after {
 .soft-key:hover {
   transform: translateY(-3px);
   box-shadow:
-    0 18px 34px rgba(42, 59, 104, 0.16),
-    0 8px 16px rgba(42, 59, 104, 0.1),
+    0 14px 28px rgba(42, 59, 104, 0.12),
+    0 6px 14px rgba(42, 59, 104, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 
@@ -347,7 +365,7 @@ body::after {
   background: linear-gradient(180deg, #3b7bff 0%, #2f62f0 100%);
   color: #ffffff;
   box-shadow:
-    0 10px 20px rgba(41, 90, 200, 0.28),
+    0 8px 18px rgba(41, 90, 200, 0.24),
     inset 0 2px 6px rgba(9, 30, 86, 0.25),
     inset 0 -2px 0 rgba(255, 255, 255, 0.18);
   transform: translateY(-1px) scale(1.02);
@@ -358,7 +376,7 @@ body::after {
 }
 
 .key-sub {
-  font-size: 11px;
+  font-size: calc(11px * 1.4);
   color: #7f8aa5;
 }
 
@@ -367,11 +385,19 @@ body::after {
 }
 
 .soft-key-wide {
-  min-width: 88px;
+  min-width: calc(88px * var(--key-scale));
 }
 
 .soft-key-space {
-  min-width: clamp(220px, 40vw, 420px);
+  min-width: clamp(260px, 48vw, 500px);
+}
+
+.soft-key .text-lg {
+  font-size: calc(1.125rem * var(--key-scale));
+}
+
+.soft-key .text-sm {
+  font-size: calc(0.875rem * var(--key-scale));
 }
 
 .stats-footer {
