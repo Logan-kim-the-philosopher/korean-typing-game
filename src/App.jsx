@@ -909,7 +909,7 @@ function App() {
           </div>
         </div>
 
-        <div className="card-panel keyboard-panel reveal">
+        <div className="keyboard-wrap reveal">
           <Keyboard currentKey={currentKey} />
         </div>
 
