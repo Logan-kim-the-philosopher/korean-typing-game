@@ -498,7 +498,10 @@ function App() {
   const [useMobileKeyboard, setUseMobileKeyboard] = useState(false);
   const [mobileInput, setMobileInput] = useState('');
   const [showKoreanModal, setShowKoreanModal] = useState(false);
-  const [packId, setPackId] = useState('');
+  const [packId, setPackId] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('pack') || '';
+  });
   const [packMeta, setPackMeta] = useState(null);
   const mobileInputRef = useRef(null);
   const mobileJamoCountRef = useRef(0);
@@ -518,11 +521,12 @@ function App() {
     if (urlCurriculum && !urlPack) setCurriculum(urlCurriculum);
     if (urlLevel) setLevel(urlLevel);
     if (urlStudent) setStudent(urlStudent);
-    if (urlPack) setPackId(urlPack);
-  }, []);
+    if (urlPack && urlPack !== packId) setPackId(urlPack);
+  }, [packId]);
 
   // 커리큘럼 목록 로드
   useEffect(() => {
+    if (packId) return;
     fetchCurriculums().then(data => {
       setCurriculums(data);
       setCurriculumsLoading(false);
@@ -531,7 +535,7 @@ function App() {
       setCurriculums(MOCK_CURRICULUMS);
       setCurriculumsLoading(false);
     });
-  }, []);
+  }, [packId]);
 
   useEffect(() => {
     const updateKeyboardLayout = () => {
