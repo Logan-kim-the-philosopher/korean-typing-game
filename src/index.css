@@ -313,6 +313,9 @@ body::after {
   color: var(--text);
   margin-bottom: 10px;
   transition: transform 150ms ease, color 150ms ease;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .word-display.is-error {

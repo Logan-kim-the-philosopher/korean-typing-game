@@ -501,6 +501,8 @@ function App() {
   const [showKoreanModal, setShowKoreanModal] = useState(false);
   const mobileInputRef = useRef(null);
   const mobileJamoCountRef = useRef(0);
+  const mobileTypedCountRef = useRef(0);
+  const wordRef = useRef(null);
 
   // URL 파라미터에서 커리큘럼, 레벨, 학생 이름 가져오기
   useEffect(() => {
@@ -566,6 +568,34 @@ function App() {
     }
   }, [useMobileKeyboard, currentWordIndex]);
 
+  const fitWordToWidth = useCallback(() => {
+    const el = wordRef.current;
+    if (!el) return;
+    el.style.fontSize = '';
+    const computedSize = Number.parseFloat(window.getComputedStyle(el).fontSize);
+    if (!computedSize) return;
+    let size = computedSize;
+    const minSize = 24;
+    if (el.scrollWidth <= el.clientWidth) return;
+    while (size > minSize && el.scrollWidth > el.clientWidth) {
+      size -= 2;
+      el.style.fontSize = `${size}px`;
+    }
+  }, []);
+
+  useEffect(() => {
+    fitWordToWidth();
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(fitWordToWidth);
+    }
+  }, [fitWordToWidth, currentWordIndex]);
+
+  useEffect(() => {
+    const handleResize = () => fitWordToWidth();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [fitWordToWidth]);
+
 
   // 커리큘럼이 변경되면 해당 커리큘럼의 데이터 로드
   useEffect(() => {
@@ -618,6 +648,7 @@ function App() {
       setWrongKeyAttempts(0);
       setMobileInput('');
       mobileJamoCountRef.current = 0;
+      mobileTypedCountRef.current = 0;
     }
   }, [words, currentWordIndex]);
 
@@ -745,42 +776,40 @@ function App() {
   const handleMobileInput = useCallback((event) => {
     const value = event.target.value;
     const typedJamos = disassembleHangul(value);
-    const isPrefix = typedJamos.length <= currentJamos.length
-      && typedJamos.every((jamo, i) => jamo === currentJamos[i]);
+    const maxLen = Math.min(typedJamos.length, currentJamos.length);
+    let prefixLen = 0;
 
-    if (!isPrefix) {
-      setShowError(true);
-      setTimeout(() => setShowError(false), 500);
-      setWrongKeyAttempts(prev => prev + 1);
+    for (let i = 0; i < maxLen; i += 1) {
+      if (typedJamos[i] !== currentJamos[i]) break;
+      prefixLen += 1;
+    }
+
+    const prevTyped = mobileTypedCountRef.current;
+    const prevMatched = mobileJamoCountRef.current;
+
+    if (typedJamos.length > prevTyped) {
+      const deltaTyped = typedJamos.length - prevTyped;
+      const deltaCorrect = Math.max(0, prefixLen - prevMatched);
       setStats(prev => ({
-        ...prev,
-        totalAttempts: prev.totalAttempts + 1
+        totalAttempts: prev.totalAttempts + deltaTyped,
+        correctAttempts: prev.correctAttempts + deltaCorrect
       }));
-      setMobileInput('');
-      mobileJamoCountRef.current = 0;
-      setCurrentJamoIndex(0);
-      if (mobileInputRef.current) {
-        mobileInputRef.current.value = '';
+      if (prefixLen < typedJamos.length) {
+        setWrongKeyAttempts(prev => prev + 1);
+        setShowError(true);
+        setTimeout(() => setShowError(false), 500);
       }
-      return;
     }
 
-    const prevCount = mobileJamoCountRef.current;
-    if (typedJamos.length > prevCount) {
-      const delta = typedJamos.length - prevCount;
-      setStats(prev => ({
-        totalAttempts: prev.totalAttempts + delta,
-        correctAttempts: prev.correctAttempts + delta
-      }));
-    }
-
-    mobileJamoCountRef.current = typedJamos.length;
+    mobileTypedCountRef.current = typedJamos.length;
+    mobileJamoCountRef.current = prefixLen;
     setMobileInput(value);
-    setCurrentJamoIndex(typedJamos.length);
+    setCurrentJamoIndex(prefixLen);
 
-    if (typedJamos.length === currentJamos.length) {
+    if (prefixLen === currentJamos.length && typedJamos.length === currentJamos.length) {
       setMobileInput('');
       mobileJamoCountRef.current = 0;
+      mobileTypedCountRef.current = 0;
       if (mobileInputRef.current) {
         mobileInputRef.current.value = '';
       }
@@ -1034,7 +1063,7 @@ function App() {
         {/* 자모 분해 표시 */}
         <div className="card-panel panel-soft typing-card reveal">
 
-          <div className={`word-display ${showError ? 'is-error' : ''}`}>
+          <div ref={wordRef} className={`word-display ${showError ? 'is-error' : ''}`}>
             {currentWord.korean}
           </div>
 
