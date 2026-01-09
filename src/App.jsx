@@ -498,6 +498,8 @@ function App() {
   const [useMobileKeyboard, setUseMobileKeyboard] = useState(false);
   const [mobileInput, setMobileInput] = useState('');
   const [showKoreanModal, setShowKoreanModal] = useState(false);
+  const [packId, setPackId] = useState('');
+  const [packMeta, setPackMeta] = useState(null);
   const mobileInputRef = useRef(null);
   const mobileJamoCountRef = useRef(0);
   const mobileTypedCountRef = useRef(0);
@@ -511,10 +513,12 @@ function App() {
     const urlCurriculum = params.get('curriculum');
     const urlLevel = params.get('level');
     const urlStudent = params.get('student');
+    const urlPack = params.get('pack');
 
-    if (urlCurriculum) setCurriculum(urlCurriculum);
+    if (urlCurriculum && !urlPack) setCurriculum(urlCurriculum);
     if (urlLevel) setLevel(urlLevel);
     if (urlStudent) setStudent(urlStudent);
+    if (urlPack) setPackId(urlPack);
   }, []);
 
   // 커리큘럼 목록 로드
@@ -604,11 +608,16 @@ function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, [fitWordToWidth]);
 
+  const progressKey = packId
+    ? `korean-typing-pack-${packId}`
+    : curriculum
+    ? `korean-typing-progress-${curriculum}`
+    : '';
 
-  // 커리큘럼이 변경되면 해당 커리큘럼의 데이터 로드
+  // 커리큘럼/팩별 진행 데이터 로드
   useEffect(() => {
-    if (curriculum) {
-      const saved = localStorage.getItem(`korean-typing-progress-${curriculum}`);
+    if (progressKey) {
+      const saved = localStorage.getItem(progressKey);
       if (saved) {
         try {
           const data = JSON.parse(saved);
@@ -626,31 +635,72 @@ function App() {
           console.error('localStorage parse error:', e);
         }
       } else {
-        // 새 커리큘럼이면 초기화
+        // 새 커리큘럼/팩이면 초기화
         setCompletedWords([]);
         setStats({ totalAttempts: 0, correctAttempts: 0 });
         setMistakeWords([]);
       }
     }
-  }, [curriculum]);
+  }, [progressKey]);
 
-  // 단어 데이터 로드
+  // 커리큘럼 단어 데이터 로드
   useEffect(() => {
     console.log('Words loading useEffect triggered, curriculum:', curriculum);
-    if (curriculum) {
+    if (curriculum && !packId) {
       console.log('Calling fetchWords with curriculum:', curriculum);
       fetchWords(curriculum).then(words => {
         console.log('fetchWords returned:', words);
         setWords(words);
       });
     }
-  }, [curriculum]);
+  }, [curriculum, packId]);
+
+  // 팩 데이터 로드
+  useEffect(() => {
+    if (!packId) return;
+    setWords([]);
+    setPackMeta(null);
+    setIsCompleted(false);
+    setCurrentWordIndex(0);
+    setCurrentJamoIndex(0);
+
+    fetch(`/api/packs/${packId}`)
+      .then(res => {
+        if (!res.ok) {
+          throw new Error('Pack not found');
+        }
+        return res.json();
+      })
+      .then(data => {
+        const items = Array.isArray(data.items) ? data.items : [];
+        const mapped = items.map(item => ({
+          korean: item.korean,
+          english: item.english,
+          category: item.pos || item.category,
+          typing_targets: item.typing_targets,
+          hint: item.hint
+        }));
+        setPackMeta({
+          title: data.title,
+          type: data.type,
+          level: data.level,
+          topic: data.topic,
+          sub_topic: data.sub_topic
+        });
+        setWords(mapped.filter(word => word.korean && word.english));
+      })
+      .catch(() => {
+        setWords([]);
+      });
+  }, [packId]);
 
   // 현재 단어의 자모 분해
   useEffect(() => {
     if (words.length > 0 && currentWordIndex < words.length) {
       const word = words[currentWordIndex];
-      const jamos = disassembleHangul(word.korean);
+      const jamos = Array.isArray(word.typing_targets) && word.typing_targets.length > 0
+        ? word.typing_targets
+        : disassembleHangul(word.korean);
       setCurrentJamos(jamos);
       setCurrentJamoIndex(0);
       setWrongKeyAttempts(0);
@@ -660,12 +710,12 @@ function App() {
     }
   }, [words, currentWordIndex]);
 
-  // localStorage에 저장 (커리큘럼별)
+  // localStorage에 저장 (커리큘럼/팩별)
   const saveToLocalStorage = useCallback((markAsCompleted = false) => {
-    if (!curriculum) return;
+    if (!progressKey) return;
 
     // 기존 데이터 가져오기
-    const saved = localStorage.getItem(`korean-typing-progress-${curriculum}`);
+    const saved = localStorage.getItem(progressKey);
     let existingData = {};
 
     if (saved) {
@@ -682,8 +732,8 @@ function App() {
       mistakeWords,
       completed: markAsCompleted || existingData.completed || false
     };
-    localStorage.setItem(`korean-typing-progress-${curriculum}`, JSON.stringify(data));
-  }, [curriculum, completedWords, stats, mistakeWords]);
+    localStorage.setItem(progressKey, JSON.stringify(data));
+  }, [progressKey, completedWords, stats, mistakeWords]);
 
   const completeWord = useCallback(() => {
     const currentWord = words[currentWordIndex];
@@ -887,12 +937,12 @@ function App() {
 
   // 완료 시 localStorage 자동 저장
   useEffect(() => {
-    if (isCompleted && curriculum && completedWords.length > 0) {
+    if (isCompleted && progressKey && completedWords.length > 0) {
       // 틀린 단어가 없으면 완료로 표시
       const allCompleted = mistakeWords.length === 0;
       saveToLocalStorage(allCompleted);
     }
-  }, [isCompleted, curriculum, completedWords, mistakeWords, saveToLocalStorage]);
+  }, [isCompleted, progressKey, completedWords, mistakeWords, saveToLocalStorage]);
 
   // 커리큘럼 선택 핸들러
   const handleCurriculumSelect = (selectedCurriculum) => {
@@ -902,6 +952,19 @@ function App() {
 
   // 다시 시작
   const restart = () => {
+    if (packId) {
+      setCurrentWordIndex(0);
+      setCurrentJamoIndex(0);
+      setIsCompleted(false);
+      setCompletedWords([]);
+      setMistakeWords([]);
+      setStats({ totalAttempts: 0, correctAttempts: 0 });
+      if (progressKey) {
+        localStorage.removeItem(progressKey);
+      }
+      return;
+    }
+
     fetchWords(curriculum).then(data => {
       setWords(data);
       setCurrentWordIndex(0);
@@ -919,6 +982,13 @@ function App() {
 
   // 커리큘럼 다시 선택
   const changeCurriculum = () => {
+    if (packId) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('pack');
+      window.history.replaceState(null, '', url.toString());
+      setPackId('');
+      setPackMeta(null);
+    }
     setCurriculum('');
     setWords([]);
     setCurrentWordIndex(0);
@@ -944,7 +1014,7 @@ function App() {
   };
 
   // 커리큘럼 선택 화면
-  if (!curriculum) {
+  if (!curriculum && !packId) {
     return <CurriculumSelection
       onSelect={handleCurriculumSelect}
       student={student}
@@ -985,7 +1055,12 @@ function App() {
           <div className="text-center mb-8">
             <div className="text-5xl mb-3">{allCorrect ? '🎉' : '👏'}</div>
             <h1 className="result-title">{allCorrect ? 'Perfect!' : 'Complete!'}</h1>
-            {currentCurriculumObj && (
+            {packMeta?.title && (
+              <p className="text-muted text-base">
+                {packMeta.title}
+              </p>
+            )}
+            {!packMeta?.title && currentCurriculumObj && (
               <p className="text-muted text-base">
                 {currentCurriculumObj.icon} {currentCurriculumObj.name} Curriculum
               </p>
@@ -1032,7 +1107,7 @@ function App() {
                 Retry Incorrect Words
               </button>
             )}
-            {nextCurriculum && allCorrect && (
+            {nextCurriculum && allCorrect && !packId && (
               <button
                 onClick={() => {
                   setCurriculum(nextCurriculum.id);
@@ -1051,12 +1126,14 @@ function App() {
             >
               Start Over
             </button>
-            <button
-              onClick={changeCurriculum}
-              className="w-full btn-ghost"
-            >
-              Select Curriculum
-            </button>
+            {!packId && (
+              <button
+                onClick={changeCurriculum}
+                className="w-full btn-ghost"
+              >
+                Select Curriculum
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -1086,7 +1163,10 @@ function App() {
             </button>
 
             <div className="progress-title">
-              {currentCurriculum && (
+              {packMeta?.title && (
+                <span className="mr-2">{packMeta.title}</span>
+              )}
+              {!packMeta?.title && currentCurriculum && (
                 <span className="mr-2">
                   {currentCurriculum.icon} {currentCurriculum.name}
                 </span>
@@ -1117,7 +1197,9 @@ function App() {
           <div className={`translation-swap ${showError ? 'show-error' : ''}`}>
             <div className="word-translation">
               {currentWord.english}
-              <span className="category">[{currentWord.category}]</span>
+              {currentWord.category && (
+                <span className="category">[{currentWord.category}]</span>
+              )}
             </div>
             <div className="error-inline">✗ Incorrect</div>
           </div>
