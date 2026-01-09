@@ -781,8 +781,9 @@ function App() {
       setMobileInput(rawValue);
       return;
     }
-    const typedJamos = disassembleHangul(rawValue);
-    const maxLen = Math.min(typedJamos.length, currentJamos.length);
+    const typedJamos = disassembleHangul(rawValue).filter((char) => /[ㄱ-ㅎㅏ-ㅣ]/.test(char));
+    const effectiveTypedLen = Math.min(typedJamos.length, currentJamos.length);
+    const maxLen = effectiveTypedLen;
     let prefixLen = 0;
 
     for (let i = 0; i < maxLen; i += 1) {
@@ -795,22 +796,23 @@ function App() {
 
     const prevTyped = mobileTypedCountRef.current;
     const prevMatched = mobileJamoCountRef.current;
-    const deltaTyped = Math.max(0, typedJamos.length - prevTyped);
+    const deltaTyped = Math.max(0, effectiveTypedLen - prevTyped);
     const deltaCorrect = Math.max(0, prefixLen - prevMatched);
+    const hasMismatch = prefixLen < effectiveTypedLen && prefixLen < currentJamos.length;
 
     if (deltaTyped > 0) {
       setStats(prev => ({
         totalAttempts: prev.totalAttempts + deltaTyped,
         correctAttempts: prev.correctAttempts + deltaCorrect
       }));
-      if (prefixLen < typedJamos.length) {
+      if (hasMismatch) {
         setWrongKeyAttempts(prev => prev + 1);
         setShowError(true);
         setTimeout(() => setShowError(false), 500);
       }
     }
 
-    mobileTypedCountRef.current = sanitizedJamos.length;
+    mobileTypedCountRef.current = effectiveTypedLen;
     mobileJamoCountRef.current = prefixLen;
     setMobileInput(sanitizedValue);
     setCurrentJamoIndex(prefixLen);
